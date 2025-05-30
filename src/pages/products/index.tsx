@@ -26,12 +26,20 @@ import { Form } from "@/components/ui/form";
 import { Loader2 } from "lucide-react";
 
 const ProductsPage: NextPageWithLayout = () => {
-  const apiUtils = api.useUtils();
+  // LOCAL STATE -------------------------------------------------
+  const [uplaodedImageUrl, setUplaodedImageUrl] = useState<string | null>(null);
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
 
+  // USE FORM ----------------------------------------------------
+  const createProductForm = useForm<ProductFormSchema>({
+    resolver: zodResolver(productFormSchema),
+  });
+
+  // API CALL ----------------------------------------------------
+  const apiUtils = api.useUtils();
   const { data: products } = api.product.getProducts.useQuery();
 
-  const [uplaodedImageUrl, setUplaodedImageUrl] = useState<string | null>(null);
-
+  // DECLARE DATA ------------------------------------------------
   const { mutate: createProduct, isPending: isCreateProductPending } =
     api.product.createProduct.useMutation({
       onSuccess: async () => {
@@ -42,28 +50,24 @@ const ProductsPage: NextPageWithLayout = () => {
       },
     });
 
-  const { mutate: deleteProduct } = api.product.deleteProductById.useMutation({
-    onSuccess: async () => {
-      await apiUtils.product.getProducts.invalidate();
+  // const { mutate: deleteProduct } = api.product.deleteProductById.useMutation({
+  //   onSuccess: async () => {
+  //     await apiUtils.product.getProducts.invalidate();
 
-      alert("Successfully deleted a product");
-    },
-  });
+  //     alert("Successfully deleted a product");
+  //   },
+  // });
 
-  const { mutate: editProduct } = api.product.editProduct.useMutation({
-    onSuccess: async () => {
-      await apiUtils.product.getProducts.invalidate();
+  // const { mutate: editProduct } = api.product.editProduct.useMutation({
+  //   onSuccess: async () => {
+  //     await apiUtils.product.getProducts.invalidate();
 
-      alert("Successfully edited a product");
-    },
-  });
+  //     alert("Successfully edited a product");
+  //   },
+  // });
 
-  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
-
-  const createProductForm = useForm<ProductFormSchema>({
-    resolver: zodResolver(productFormSchema),
-  });
-
+  // HANDLERS ----------------------------------------------------
+  // create
   const handelSubmitCreateProduct = (values: ProductFormSchema) => {
     if (!uplaodedImageUrl) {
       alert("Please upload an image or waiting for the image to be uploaded");
