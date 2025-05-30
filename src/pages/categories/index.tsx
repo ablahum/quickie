@@ -32,24 +32,25 @@ const CategoriesPage: NextPageWithLayout = () => {
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
-  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [categoryToEdit, setCategoryToEdit] = useState<string>("0");
+  const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
   // USE FORM ----------------------------------------------------
   const createCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
   });
-
   const editCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
   });
 
-  // API CALL ----------------------------------------------------
   const apiUtils = api.useUtils();
+
+  // API CALL ----------------------------------------------------
+  // get/read
   const { data: categories, isLoading: isCategoryLoading } =
     api.category.getCategories.useQuery();
 
-  // DECLARE DATA ------------------------------------------------
+  // create
   const { mutate: createCategory, isPending: isCreateCategoryPending } =
     api.category.createCategory.useMutation({
       onSuccess: async () => {
@@ -61,6 +62,7 @@ const CategoriesPage: NextPageWithLayout = () => {
       },
     });
 
+  // edit/update
   const { mutate: editCategory, isPending: isEditCategoryPending } =
     api.category.editCategory.useMutation({
       onSuccess: async () => {
@@ -71,6 +73,7 @@ const CategoriesPage: NextPageWithLayout = () => {
       },
     });
 
+  // delete
   const { mutate: deleteCategory, isPending: isDeleteCategoryPending } =
     api.category.deleteCategoryById.useMutation({
       onSuccess: async () => {
@@ -91,9 +94,7 @@ const CategoriesPage: NextPageWithLayout = () => {
 
   // update
   const handleSubmitEditCategory = (data: CategoryFormSchema) => {
-    if (!categoryToEdit) {
-      return;
-    }
+    if (!categoryToEdit) return;
 
     editCategory({
       id: categoryToEdit,
@@ -111,15 +112,11 @@ const CategoriesPage: NextPageWithLayout = () => {
   };
 
   // delete
-  const handleClickDeleteCategory = (categoryId: string) => {
+  const handleClickDeleteCategory = (categoryId: string) =>
     setCategoryToDelete(categoryId);
-  };
 
-  const handleConfirmDeleteCategory = () => {
-    deleteCategory({
-      id: categoryToDelete!,
-    });
-  };
+  const handleConfirmDeleteCategory = () =>
+    deleteCategory({ id: categoryToDelete! });
 
   return (
     <>
