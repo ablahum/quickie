@@ -18,19 +18,23 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { CATEGORIES, type Category } from "@/data/mock";
 import { categoryFormSchema, type CategoryFormSchema } from "@/forms/category";
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { NextPageWithLayout } from "../_app";
+import { api } from "@/utils/api";
+import { Loader2 } from "lucide-react";
 
 const CategoriesPage: NextPageWithLayout = () => {
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [categoryToEdit, setCategoryToEdit] = useState<string>("0");
+
+  const apiUtils = api.useUtils();
 
   const createCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
@@ -40,16 +44,60 @@ const CategoriesPage: NextPageWithLayout = () => {
     resolver: zodResolver(categoryFormSchema),
   });
 
+  const { data: categories, isLoading: isCategoryLoading } =
+    api.category.getCategories.useQuery();
+
+  const { mutate: createCategory, isPending: isCreateCategoryPending } =
+    api.category.createCategory.useMutation({
+      onSuccess: async () => {
+        await apiUtils.category.getCategories.invalidate();
+
+        alert("Successfully created a new category");
+        setCreateCategoryDialogOpen(false);
+        createCategoryForm.reset();
+      },
+    });
+
+  const { mutate: editCategory, isPending: isEditCategoryPending } =
+    api.category.editCategory.useMutation({
+      onSuccess: async () => {
+        await apiUtils.category.getCategories.invalidate();
+
+        alert("Successfully edited a category");
+        setEditCategoryDialogOpen(false);
+      },
+    });
+
+  const { mutate: deleteCategory, isPending: isDeleteCategoryPending } =
+    api.category.deleteCategoryById.useMutation({
+      onSuccess: async () => {
+        await apiUtils.category.getCategories.invalidate();
+
+        alert("Successfully deleted a category");
+        setCategoryToDelete(null);
+      },
+    });
+
   const handleSubmitCreateCategory = (data: CategoryFormSchema) => {
-    console.log(data);
+    createCategory({
+      name: data.name,
+    });
   };
 
   const handleSubmitEditCategory = (data: CategoryFormSchema) => {
-    console.log(data);
+    if (!categoryToEdit) {
+      return;
+    }
+
+    editCategory({
+      id: categoryToEdit,
+      name: data.name,
+    });
   };
 
-  const handleClickEditCategory = (category: Category) => {
+  const handleClickEditCategory = (category: { id: string; name: string }) => {
     setEditCategoryDialogOpen(true);
+    setCategoryToEdit(category.id);
 
     editCategoryForm.reset({
       name: category.name,
@@ -58,6 +106,12 @@ const CategoriesPage: NextPageWithLayout = () => {
 
   const handleClickDeleteCategory = (categoryId: string) => {
     setCategoryToDelete(categoryId);
+  };
+
+  const handleConfirmDeleteCategory = () => {
+    deleteCategory({
+      id: categoryToDelete!,
+    });
   };
 
   return (
@@ -95,7 +149,11 @@ const CategoriesPage: NextPageWithLayout = () => {
                   onClick={createCategoryForm.handleSubmit(
                     handleSubmitCreateCategory,
                   )}
+                  disabled={isCreateCategoryPending}
                 >
+                  {isCreateCategoryPending && (
+                    <Loader2 className="animate-spin" />
+                  )}
                   Create Category
                 </Button>
               </AlertDialogFooter>
@@ -104,28 +162,25 @@ const CategoriesPage: NextPageWithLayout = () => {
         </div>
       </DashboardHeader>
 
-      <div>
-        {CATEGORIES.length === 0 ? (
-          <div className="rounded-md border">
-            <div className="p-8 text-center">
-              <p className="text-muted-foreground">No categories found</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Get started by creating your first category
-              </p>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+        {isCategoryLoading ? (
+          <p>Loading...</p>
         ) : (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-            {CATEGORIES.filter((cat) => cat.id !== "all").map((category) => (
-              <CategoryCatalogCard
-                key={category.id}
-                name={category.name}
-                productCount={category.count}
-                onEdit={() => handleClickEditCategory(category)}
-                onDelete={() => handleClickDeleteCategory(category.id)}
-              />
-            ))}
-          </div>
+          categories &&
+          categories.map((category) => (
+            <CategoryCatalogCard
+              key={category.id}
+              name={category.name}
+              productCount={category.productCount}
+              onEdit={() =>
+                handleClickEditCategory({
+                  id: category.id,
+                  name: category.name,
+                })
+              }
+              onDelete={() => handleClickDeleteCategory(category.id)}
+            />
+          ))
         )}
       </div>
 
@@ -148,7 +203,9 @@ const CategoriesPage: NextPageWithLayout = () => {
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <Button
               onClick={editCategoryForm.handleSubmit(handleSubmitEditCategory)}
+              disabled={isEditCategoryPending}
             >
+              {isEditCategoryPending && <Loader2 className="animate-spin" />}
               Edit Category
             </Button>
           </AlertDialogFooter>
@@ -173,7 +230,14 @@ const CategoriesPage: NextPageWithLayout = () => {
           </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button variant="destructive">Delete</Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeleteCategory}
+              disabled={isDeleteCategoryPending}
+            >
+              {isDeleteCategoryPending && <Loader2 className="animate-spin" />}
+              Delete
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

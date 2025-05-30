@@ -46,7 +46,7 @@ const DashboardPage: NextPageWithLayout = () => {
           <div className="space-y-1">
             <DashboardTitle>Dashboard</DashboardTitle>
             <DashboardDescription>
-              Welcome to your Simple POS system dashboard.
+              Welcome to Quickie, your Simple POS system dashboard.
             </DashboardDescription>
           </div>
 
