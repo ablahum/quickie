@@ -7,57 +7,75 @@ import {
 import type { NextPageWithLayout } from "../_app";
 import { useState, type ReactElement } from "react";
 import { Button } from "@/components/ui/button";
-import { PRODUCTS } from "@/data/mock";
-import { ProductMenuCard } from "@/components/shared/product/ProductMenuCard";
 import { ProductCatalogCard } from "@/components/shared/product/ProductCatalogCard";
 import { api } from "@/utils/api";
 import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@radix-ui/react-alert-dialog";
-import {
   AlertDialogFooter,
   AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ProductForm } from "@/components/shared/product/ProductForm";
-import { Form } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { productFormSchema, type ProductFormSchema } from "@/forms/product";
+import { ProductForm } from "@/components/shared/product/ProductForm";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Form } from "@/components/ui/form";
+import { Loader2 } from "lucide-react";
 
 const ProductsPage: NextPageWithLayout = () => {
   const apiUtils = api.useUtils();
 
-  const [uploadedCreateProductImageUrl, setUploadedCreateProductImageUrl] =
-    useState<string | null>(null);
-  const [createProductDialogOpen, setCreateCategoryDialogOpen] =
-    useState(false);
+  const { data: products } = api.product.getProducts.useQuery();
 
-  const { data: products, isLoading } = api.product.getProducts.useQuery();
+  const [uplaodedImageUrl, setUplaodedImageUrl] = useState<string | null>(null);
 
-  const { mutate: createProduct } = api.product.createProduct.useMutation({
+  const { mutate: createProduct, isPending: isCreateProductPending } =
+    api.product.createProduct.useMutation({
+      onSuccess: async () => {
+        await apiUtils.product.getProducts.invalidate();
+
+        alert("Successfully created new product");
+        setCreateProductDialogOpen(false);
+      },
+    });
+
+  const { mutate: deleteProduct } = api.product.deleteProductById.useMutation({
     onSuccess: async () => {
       await apiUtils.product.getProducts.invalidate();
 
-      alert("berhasil");
+      alert("Successfully deleted a product");
     },
   });
+
+  const { mutate: editProduct } = api.product.editProduct.useMutation({
+    onSuccess: async () => {
+      await apiUtils.product.getProducts.invalidate();
+
+      alert("Successfully edited a product");
+    },
+  });
+
+  const [createProductDialogOpen, setCreateProductDialogOpen] = useState(false);
 
   const createProductForm = useForm<ProductFormSchema>({
     resolver: zodResolver(productFormSchema),
   });
 
-  const handleSubmitCreateProduct = (values: ProductFormSchema) => {
+  const handelSubmitCreateProduct = (values: ProductFormSchema) => {
+    if (!uplaodedImageUrl) {
+      alert("Please upload an image or waiting for the image to be uploaded");
+      return;
+    }
+
     createProduct({
       name: values.name,
       price: values.price,
       categoryId: values.categoryId,
+      imageUrl: uplaodedImageUrl,
     });
-
-    setCreateCategoryDialogOpen(false);
   };
 
   return (
@@ -73,21 +91,21 @@ const ProductsPage: NextPageWithLayout = () => {
 
           <AlertDialog
             open={createProductDialogOpen}
-            onOpenChange={setCreateCategoryDialogOpen}
+            onOpenChange={setCreateProductDialogOpen}
           >
-            <AlertDialogTrigger>
+            <AlertDialogTrigger asChild>
               <Button>Add New Product</Button>
             </AlertDialogTrigger>
 
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Add product</AlertDialogTitle>
+                <AlertDialogTitle>Create Product</AlertDialogTitle>
               </AlertDialogHeader>
 
               <Form {...createProductForm}>
                 <ProductForm
-                  onSubmit={handleSubmitCreateProduct}
-                  // onChangeImageUrl={()}
+                  onSubmit={handelSubmitCreateProduct}
+                  onChangeImageUrl={setUplaodedImageUrl}
                 />
               </Form>
 
@@ -96,9 +114,13 @@ const ProductsPage: NextPageWithLayout = () => {
 
                 <Button
                   onClick={createProductForm.handleSubmit(
-                    handleSubmitCreateProduct,
+                    handelSubmitCreateProduct,
                   )}
+                  disabled={isCreateProductPending}
                 >
+                  {isCreateProductPending && (
+                    <Loader2 className="animate-spin" />
+                  )}
                   Create Product
                 </Button>
               </AlertDialogFooter>
@@ -108,29 +130,17 @@ const ProductsPage: NextPageWithLayout = () => {
       </DashboardHeader>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {/* {PRODUCTS.map((product) => (
+        {products?.map((product) => (
           <ProductCatalogCard
             key={product.id}
             name={product.name}
             price={product.price}
-            image={product.image ?? ""}
-            category={product.category}
+            image={product.imageUrl ?? ""}
+            category={product.category.id}
             onEdit={() => void 0}
             onDelete={() => void 0}
           />
-        ))} */}
-
-        {products?.map((product) => {
-          return (
-            <ProductCatalogCard
-              key={product.id}
-              name={product.name}
-              price={product.price}
-              image={product.imageUrl ?? ""}
-              category={product.category.name}
-            />
-          );
-        })}
+        ))}
       </div>
     </>
   );
