@@ -28,14 +28,14 @@ import { api } from "@/utils/api";
 import { Loader2 } from "lucide-react";
 
 const CategoriesPage: NextPageWithLayout = () => {
+  // LOCAL STATE -------------------------------------------------
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
   const [categoryToEdit, setCategoryToEdit] = useState<string>("0");
 
-  const apiUtils = api.useUtils();
-
+  // USE FORM ----------------------------------------------------
   const createCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
   });
@@ -44,9 +44,12 @@ const CategoriesPage: NextPageWithLayout = () => {
     resolver: zodResolver(categoryFormSchema),
   });
 
+  // API CALL ----------------------------------------------------
+  const apiUtils = api.useUtils();
   const { data: categories, isLoading: isCategoryLoading } =
     api.category.getCategories.useQuery();
 
+  // DECLARE DATA ------------------------------------------------
   const { mutate: createCategory, isPending: isCreateCategoryPending } =
     api.category.createCategory.useMutation({
       onSuccess: async () => {
@@ -78,12 +81,15 @@ const CategoriesPage: NextPageWithLayout = () => {
       },
     });
 
+  // HANDLERS ----------------------------------------------------
+  // create
   const handleSubmitCreateCategory = (data: CategoryFormSchema) => {
     createCategory({
       name: data.name,
     });
   };
 
+  // update
   const handleSubmitEditCategory = (data: CategoryFormSchema) => {
     if (!categoryToEdit) {
       return;
@@ -104,6 +110,7 @@ const CategoriesPage: NextPageWithLayout = () => {
     });
   };
 
+  // delete
   const handleClickDeleteCategory = (categoryId: string) => {
     setCategoryToDelete(categoryId);
   };
@@ -166,8 +173,7 @@ const CategoriesPage: NextPageWithLayout = () => {
         {isCategoryLoading ? (
           <p>Loading...</p>
         ) : (
-          categories &&
-          categories.map((category) => (
+          categories?.map((category) => (
             <CategoryCatalogCard
               key={category.id}
               name={category.name}
