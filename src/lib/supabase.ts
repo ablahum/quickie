@@ -22,13 +22,9 @@ export async function uploadFileToSignedUrl({
       .from(bucket)
       .uploadToSignedUrl(path, token, file);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
-    if (!data) {
-      throw new Error("No data returned from uploadToSignedUrl");
-    }
+    if (!data) throw new Error("No data returned from uploadToSignedUrl");
 
     const fileUrl = supabaseClient.storage
       .from(bucket)

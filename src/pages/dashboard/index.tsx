@@ -8,54 +8,82 @@ import { CategoryFilterCard } from "@/components/shared/category/CategoryFilterC
 import { CreateOrderSheet } from "@/components/shared/CreateOrderSheet";
 import { ProductMenuCard } from "@/components/shared/product/ProductMenuCard";
 import { Input } from "@/components/ui/input";
-import { CATEGORIES, PRODUCTS } from "@/data/mock";
 import { Search, ShoppingCart } from "lucide-react";
 import type { ReactElement } from "react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { NextPageWithLayout } from "../_app";
 import { Button } from "@/components/ui/button";
+import { api } from "@/utils/api";
+import { useCartStore } from "@/store/cart";
+import { toast } from "sonner";
+// import { useDebounce } from "@/hooks/use-debounce";
+// import LoadingSpinner from "@/components/ui/loading-spinner";
+// import BadgeNumber from "@/components/ui/badge-number";
+import { useDebounce } from "../../hooks/use-debounce";
+import LoadingSpinner from "../../components/ui/loading-spinner";
+import BadgeNumber from "../../components/ui/badge-number";
 
 const DashboardPage: NextPageWithLayout = () => {
+  const cartStore = useCartStore();
+
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [orderSheetOpen, setOrderSheetOpen] = useState(false);
+
+  const debouncedSearchQuery = useDebounce<string>(searchQuery, 300);
+
+  const { data: categories, isPending: isPendingCategories } =
+    api.category.getCategories.useQuery();
+
+  const { data: products, isPending: isPendingProducts } =
+    api.product.getProducts.useQuery({
+      categoryId: selectedCategory,
+      search: debouncedSearchQuery,
+    });
+
+  const totalProducts = products?.length ?? 0;
 
   const handleCategoryClick = (categoryId: string) => {
     setSelectedCategory(categoryId);
   };
 
-  const handleAddToCart = (productId: string) => {};
+  const handleAddToCart = (productId: string) => {
+    const productToAdd = products?.find((product) => product.id === productId);
 
-  const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((product) => {
-      const categoryMatch =
-        selectedCategory === "all" || product.category === selectedCategory;
+    if (!productToAdd) {
+      // toast("Product not found");
+      alert("Product not found");
+      return;
+    }
 
-      const searchMatch = product.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-
-      return categoryMatch && searchMatch;
+    cartStore.addToCart({
+      productId: productToAdd.id,
+      name: productToAdd.name,
+      price: productToAdd.price,
+      imageUrl: productToAdd.imageUrl ?? "",
     });
-  }, [selectedCategory, searchQuery]);
+  };
 
   return (
     <>
       <DashboardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="space-y-1">
             <DashboardTitle>Dashboard</DashboardTitle>
             <DashboardDescription>
-              Welcome to Quickie, your Simple POS system dashboard.
+              Welcome to your Hammercode POS system dashboard.
             </DashboardDescription>
           </div>
 
-          <Button
-            className="animate-in slide-in-from-right"
-            onClick={() => setOrderSheetOpen(true)}
-          >
-            <ShoppingCart /> Cart
-          </Button>
+          {!!cartStore.items.length && (
+            <Button
+              className="animate-in slide-in-from-right"
+              onClick={() => setOrderSheetOpen(true)}
+            >
+              <ShoppingCart /> Cart{" "}
+              <BadgeNumber number={cartStore.items.length} />
+            </Button>
+          )}
         </div>
       </DashboardHeader>
 
@@ -71,11 +99,18 @@ const DashboardPage: NextPageWithLayout = () => {
         </div>
 
         <div className="flex space-x-4 overflow-x-auto pb-2">
-          {CATEGORIES.map((category) => (
+          <CategoryFilterCard
+            name={searchQuery ? "Searched Products" : "All Categories"}
+            productCount={totalProducts}
+            isSelected={selectedCategory === "ALL"}
+            onClick={() => handleCategoryClick("ALL")}
+          />
+          {isPendingCategories && <LoadingSpinner />}
+          {categories?.map((category) => (
             <CategoryFilterCard
               key={category.id}
               name={category.name}
-              productCount={category.count}
+              productCount={category._count.products}
               isSelected={selectedCategory === category.id}
               onClick={() => handleCategoryClick(category.id)}
             />
@@ -83,7 +118,7 @@ const DashboardPage: NextPageWithLayout = () => {
         </div>
 
         <div>
-          {filteredProducts.length === 0 ? (
+          {products?.length === 0 ? (
             <div className="my-8 flex flex-col items-center justify-center">
               <p className="text-muted-foreground text-center">
                 No products found
@@ -91,10 +126,20 @@ const DashboardPage: NextPageWithLayout = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {filteredProducts.map((product) => (
+              {isPendingProducts && (
+                <div className="col-span-4 flex h-96 items-center justify-center">
+                  <LoadingSpinner size={32} />
+                </div>
+              )}
+              {products?.map((product) => (
                 <ProductMenuCard
                   key={product.id}
-                  product={product}
+                  productId={product.id}
+                  name={product.name}
+                  price={product.price}
+                  imageUrl={
+                    product.imageUrl ?? "https://placeholder.co/600x400"
+                  }
                   onAddToCart={handleAddToCart}
                 />
               ))}

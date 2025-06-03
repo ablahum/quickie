@@ -25,103 +25,108 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { NextPageWithLayout } from "../_app";
 import { api } from "@/utils/api";
-import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import type { Category } from "@prisma/client";
 
 const CategoriesPage: NextPageWithLayout = () => {
-  // LOCAL STATE -------------------------------------------------
+  const apiUtils = api.useUtils();
+
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
-  const [categoryToEdit, setCategoryToEdit] = useState<string>("0");
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
+  const [categoryToEdit, setCategoryToEdit] = useState<Omit<
+    Category,
+    "createdAt" | "updatedAt"
+  > | null>(null);
 
-  // USE FORM ----------------------------------------------------
+  // Forms =====================================================================
   const createCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
   });
+
   const editCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
+    values: {
+      name: categoryToEdit?.name ?? "",
+    },
   });
 
-  const apiUtils = api.useUtils();
+  // Queries ===================================================================
+  const { data: categories } = api.category.getCategories.useQuery();
 
-  // API CALL ----------------------------------------------------
-  // get/read
-  const { data: categories, isLoading: isCategoryLoading } =
-    api.category.getCategories.useQuery();
-
-  // create
-  const { mutate: createCategory, isPending: isCreateCategoryPending } =
+  const { mutate: createCategory, isPending: isPendingCreateCategory } =
     api.category.createCategory.useMutation({
       onSuccess: async () => {
         await apiUtils.category.getCategories.invalidate();
 
-        alert("Successfully created a new category");
+        // toast("Category created successfully!");
+        alert("Category created successfully!");
         setCreateCategoryDialogOpen(false);
         createCategoryForm.reset();
       },
     });
 
-  // edit/update
-  const { mutate: editCategory, isPending: isEditCategoryPending } =
-    api.category.editCategory.useMutation({
+  const { mutate: deleteCategoryById, isPending: isPendingDeleteCategory } =
+    api.category.deleteCategory.useMutation({
       onSuccess: async () => {
         await apiUtils.category.getCategories.invalidate();
 
-        alert("Successfully edited a category");
-        setEditCategoryDialogOpen(false);
-      },
-    });
-
-  // delete
-  const { mutate: deleteCategory, isPending: isDeleteCategoryPending } =
-    api.category.deleteCategoryById.useMutation({
-      onSuccess: async () => {
-        await apiUtils.category.getCategories.invalidate();
-
-        alert("Successfully deleted a category");
+        // toast("Category deleted successfully!");
+        alert("Category deleted successfully!");
         setCategoryToDelete(null);
       },
     });
 
-  // HANDLERS ----------------------------------------------------
-  // create
+  const { mutate: editCategory, isPending: isPendingEditCategory } =
+    api.category.editCategory.useMutation({
+      onSuccess: async () => {
+        await apiUtils.category.getCategories.invalidate();
+
+        // toast("Category edited successfully!");
+        alert("Category edited successfully!");
+        setEditCategoryDialogOpen(false);
+        editCategoryForm.reset();
+      },
+    });
+
+  // Handlers ===================================================================
   const handleSubmitCreateCategory = (data: CategoryFormSchema) => {
     createCategory({
       name: data.name,
     });
   };
 
-  // update
   const handleSubmitEditCategory = (data: CategoryFormSchema) => {
     if (!categoryToEdit) return;
 
     editCategory({
-      id: categoryToEdit,
+      categoryId: categoryToEdit.id,
       name: data.name,
     });
   };
 
-  const handleClickEditCategory = (category: { id: string; name: string }) => {
+  const handleClickEditCategory = (
+    category: Omit<Category, "createdAt" | "updatedAt">,
+  ) => {
     setEditCategoryDialogOpen(true);
-    setCategoryToEdit(category.id);
-
-    editCategoryForm.reset({
-      name: category.name,
-    });
+    setCategoryToEdit(category);
   };
 
-  // delete
-  const handleClickDeleteCategory = (categoryId: string) =>
+  const handleClickDeleteCategory = (categoryId: string) => {
     setCategoryToDelete(categoryId);
+  };
 
-  const handleConfirmDeleteCategory = () =>
-    deleteCategory({ id: categoryToDelete! });
+  const handleConfirmDeleteCategory = () => {
+    if (!categoryToDelete) return;
+
+    deleteCategoryById({ categoryId: categoryToDelete });
+  };
 
   return (
     <>
       <DashboardHeader>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="space-y-1">
             <DashboardTitle>Category Management</DashboardTitle>
             <DashboardDescription>
@@ -141,23 +146,19 @@ const CategoriesPage: NextPageWithLayout = () => {
                 <AlertDialogTitle>Add New Category</AlertDialogTitle>
               </AlertDialogHeader>
               <Form {...createCategoryForm}>
-                <CategoryForm
-                  onSubmit={handleSubmitCreateCategory}
-                  submitText="Create Category"
-                />
+                <CategoryForm onSubmit={handleSubmitCreateCategory} />
               </Form>
 
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => createCategoryForm.reset()}>
+                  Cancel
+                </AlertDialogCancel>
                 <Button
                   onClick={createCategoryForm.handleSubmit(
                     handleSubmitCreateCategory,
                   )}
-                  disabled={isCreateCategoryPending}
+                  loading={isPendingCreateCategory}
                 >
-                  {isCreateCategoryPending && (
-                    <Loader2 className="animate-spin" />
-                  )}
                   Create Category
                 </Button>
               </AlertDialogFooter>
@@ -166,25 +167,18 @@ const CategoriesPage: NextPageWithLayout = () => {
         </div>
       </DashboardHeader>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {isCategoryLoading ? (
-          <p>Loading...</p>
-        ) : (
-          categories?.map((category) => (
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
+        {categories?.map((category) => {
+          return (
             <CategoryCatalogCard
               key={category.id}
               name={category.name}
-              productCount={category.productCount}
-              onEdit={() =>
-                handleClickEditCategory({
-                  id: category.id,
-                  name: category.name,
-                })
-              }
+              productCount={category._count.products}
+              onEdit={() => handleClickEditCategory(category)}
               onDelete={() => handleClickDeleteCategory(category.id)}
             />
-          ))
-        )}
+          );
+        })}
       </div>
 
       <AlertDialog
@@ -196,19 +190,17 @@ const CategoriesPage: NextPageWithLayout = () => {
             <AlertDialogTitle>Edit Category</AlertDialogTitle>
           </AlertDialogHeader>
           <Form {...editCategoryForm}>
-            <CategoryForm
-              onSubmit={handleSubmitEditCategory}
-              submitText="Edit Category"
-            />
+            <CategoryForm onSubmit={handleSubmitEditCategory} />
           </Form>
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => editCategoryForm.reset()}>
+              Cancel
+            </AlertDialogCancel>
             <Button
               onClick={editCategoryForm.handleSubmit(handleSubmitEditCategory)}
-              disabled={isEditCategoryPending}
+              loading={isPendingEditCategory}
             >
-              {isEditCategoryPending && <Loader2 className="animate-spin" />}
               Edit Category
             </Button>
           </AlertDialogFooter>
@@ -236,9 +228,8 @@ const CategoriesPage: NextPageWithLayout = () => {
             <Button
               variant="destructive"
               onClick={handleConfirmDeleteCategory}
-              disabled={isDeleteCategoryPending}
+              loading={isPendingDeleteCategory}
             >
-              {isDeleteCategoryPending && <Loader2 className="animate-spin" />}
               Delete
             </Button>
           </AlertDialogFooter>
