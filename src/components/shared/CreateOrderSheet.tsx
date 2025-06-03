@@ -1,13 +1,10 @@
 import { Button } from "../ui/button";
-
-import { PRODUCTS } from "@/data/mock";
 import { toRupiah } from "@/utils/toRupiah";
 import { CheckCircle2, Minus, Plus } from "lucide-react";
 import Image from "next/image";
 import { useMemo, useState } from "react";
 import {
   AlertDialog,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogFooter,
 } from "../ui/alert-dialog";
@@ -21,20 +18,32 @@ import {
   SheetTitle,
 } from "../ui/sheet";
 import { PaymentQRCode } from "./PaymentQrCode";
+import { useCartStore } from "@/store/cart";
+import { api } from "@/utils/api";
+import { toast } from "sonner";
 
 type OrderItemProps = {
   id: string;
   name: string;
   price: number;
   quantity: number;
+  imageUrl: string;
+  onQuantityChange: (id: string, quantity: number) => void;
 };
 
-const OrderItem = ({ id, name, price, quantity }: OrderItemProps) => {
+const OrderItem = ({
+  id,
+  name,
+  price,
+  quantity,
+  imageUrl,
+  onQuantityChange,
+}: OrderItemProps) => {
   return (
     <div className="flex gap-3" key={id}>
       <div className="relative aspect-square h-20 shrink-0 overflow-hidden rounded-xl">
         <Image
-          src={PRODUCTS.find((p) => p.id === id)?.image ?? ""}
+          src={imageUrl}
           alt={name}
           fill
           unoptimized
@@ -54,13 +63,19 @@ const OrderItem = ({ id, name, price, quantity }: OrderItemProps) => {
           <p className="font-medium">{toRupiah(quantity * price)}</p>
 
           <div className="flex items-center gap-3">
-            <button className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1">
+            <button
+              className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1"
+              onClick={() => onQuantityChange(id, Math.max(0, quantity - 1))}
+            >
               <Minus className="h-4 w-4" />
             </button>
 
             <span className="text-sm">{quantity}</span>
 
-            <button className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1">
+            <button
+              className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1"
+              onClick={() => onQuantityChange(id, quantity + 1)}
+            >
               <Plus className="h-4 w-4" />
             </button>
           </div>
@@ -79,25 +94,100 @@ export const CreateOrderSheet = ({
   open,
   onOpenChange,
 }: CreateOrderSheetProps) => {
-  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
-  const [paymentInfoLoading, setPaymentInfoLoading] = useState(false);
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const cartStore = useCartStore();
 
-  const subtotal = 100000;
-  const tax = useMemo(() => subtotal * 0.17, [subtotal]);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+
+  const subtotal = cartStore.items.reduce((a, b) => {
+    return a + b.price * b.quantity;
+  }, 0);
+  const tax = useMemo(() => subtotal * 0.1, [subtotal]);
   const grandTotal = useMemo(() => subtotal + tax, [subtotal, tax]);
 
-  const handleCreateOrder = () => {
-    setPaymentDialogOpen(true);
-    setPaymentInfoLoading(true);
+  const {
+    mutate: createOrder,
+    isPending: isPendingCreateOrder,
+    data: createdOrder,
+  } = api.order.createOrder.useMutation({
+    onSuccess: () => {
+      // toast("Order created");
+      alert("Order created");
 
-    setTimeout(() => {
-      setPaymentInfoLoading(false);
-    }, 3000);
+      setPaymentDialogOpen(true);
+    },
+  });
+
+  const handleQuantityChange = (id: string, quantity: number) => {
+    if (quantity !== 0) {
+      cartStore.updateQuantity(id, quantity);
+    } else {
+      cartStore.removeFromCart(id);
+      onOpenChange(false);
+    }
   };
 
+  const handleCreateOrder = () => {
+    if (!cartStore.items.length) {
+      // toast("Cart is empty. Please add items to the cart.");
+      alert("Cart is empty. Please add items to the cart.");
+      return;
+    }
+
+    createOrder({
+      orderItems: cartStore.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+      })),
+    });
+  };
+
+  const { mutate: simulatePayment, isPending: isPendingSimulatePayment } =
+    api.order.simulatePayment.useMutation({
+      onSuccess: () => {
+        // toast("Payment simulated successfully");
+        alert("Payment simulated successfully");
+      },
+    });
+
+  const {
+    mutate: checkOrderStatus,
+    data: orderPaid,
+    isPending: isPendingCheckOrderStatus,
+    reset: resetCheckOrderStatus,
+  } = api.order.checkOrderStatus.useMutation({
+    onSuccess: () => {
+      console.log(orderPaid);
+      // console.log(isPendingCheckOrderStatus);
+
+      // if (orderPaid) {
+      cartStore.clearCart();
+      //   return;
+      // }
+    },
+  });
+
+  const isPendingCheckStatus = isPendingCheckOrderStatus || orderPaid;
+
   const handleRefresh = () => {
-    setPaymentSuccess(true);
+    if (!createdOrder) return;
+
+    checkOrderStatus({
+      orderId: createdOrder?.order.id,
+    });
+  };
+
+  const handleSimulatePayment = () => {
+    if (!createdOrder) return;
+
+    simulatePayment({
+      orderId: createdOrder?.order.id,
+    });
+  };
+
+  const handleClosePaymentDialog = () => {
+    setPaymentDialogOpen(false);
+    onOpenChange(false);
+    resetCheckOrderStatus();
   };
 
   return (
@@ -114,7 +204,19 @@ export const CreateOrderSheet = ({
           <div className="space-y-4 overflow-y-scroll p-4">
             <h1 className="text-xl font-medium">Order Items</h1>
             <div className="flex flex-col gap-6">
-              {/* Map order items here */}
+              {cartStore.items.map((item) => {
+                return (
+                  <OrderItem
+                    key={item.productId}
+                    id={item.productId}
+                    name={item.name}
+                    price={item.price}
+                    quantity={item.quantity}
+                    imageUrl={item.imageUrl}
+                    onQuantityChange={handleQuantityChange}
+                  />
+                );
+              })}
             </div>
           </div>
 
@@ -139,6 +241,7 @@ export const CreateOrderSheet = ({
               size="lg"
               className="mt-8 w-full"
               onClick={handleCreateOrder}
+              loading={isPendingCreateOrder}
             >
               Create Order
             </Button>
@@ -151,43 +254,52 @@ export const CreateOrderSheet = ({
           <div className="flex flex-col items-center justify-center gap-4">
             <p className="text-lg font-medium">Finish Payment</p>
 
-            {paymentInfoLoading ? (
-              <div className="flex flex-col items-center justify-center gap-2">
-                <div className="border-primary h-10 w-10 animate-spin rounded-full border-t-2 border-b-2 border-l-2" />
+            {!isPendingCheckStatus && (
+              <Button
+                variant="link"
+                onClick={handleRefresh}
+                loading={isPendingCheckOrderStatus}
+              >
+                {isPendingCheckOrderStatus ? "Refreshing..." : "Refresh"}
+              </Button>
+            )}
 
-                <p>Loading...</p>
-              </div>
+            {!isPendingCheckStatus ? (
+              <PaymentQRCode qrString={createdOrder?.qrString ?? ""} />
             ) : (
-              <>
-                <Button variant="link" onClick={handleRefresh}>
-                  Refresh
-                </Button>
+              <CheckCircle2 className="size-80 text-green-500" />
+            )}
 
-                {!paymentSuccess ? (
-                  <PaymentQRCode qrString="qr-string" />
-                ) : (
-                  <CheckCircle2 className="size-80 text-green-500" />
-                )}
+            <p className="text-3xl font-medium">
+              {toRupiah(createdOrder?.order?.grandTotal ?? 0)}
+            </p>
 
-                <p className="text-3xl font-medium">{toRupiah(grandTotal)}</p>
+            <p className="text-muted-foreground text-sm">
+              Transaction ID: {createdOrder?.order?.id}
+            </p>
 
-                <p className="text-muted-foreground text-sm">
-                  Transaction ID: 1234567890
-                </p>
-              </>
+            {!isPendingCheckStatus && (
+              <Button
+                variant="link"
+                onClick={handleSimulatePayment}
+                disabled={isPendingSimulatePayment}
+              >
+                {isPendingSimulatePayment
+                  ? "Simulating..."
+                  : "Simulate Payment"}
+              </Button>
             )}
           </div>
 
           <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button
-                disabled={paymentInfoLoading}
-                variant="outline"
-                className="w-full"
-              >
-                Done
-              </Button>
-            </AlertDialogCancel>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleClosePaymentDialog}
+              loading={isPendingCheckOrderStatus}
+            >
+              Done
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

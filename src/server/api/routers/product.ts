@@ -3,34 +3,98 @@ import { z } from "zod";
 import { supabaseAdmin } from "../../supabase-admin";
 import { Bucket } from "@/server/bucket";
 import { TRPCError } from "@trpc/server";
+import type { Prisma } from "@prisma/client";
 
 export const productRouter = createTRPCRouter({
-  getProducts: protectedProcedure.query(async ({ ctx }) => {
-    const { db, session } = ctx;
+  // GET/READ PRODUCTS
+  getProducts: protectedProcedure
+    .input(
+      z.object({
+        categoryId: z.string(),
+        search: z.string().optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { db } = ctx;
 
-    const products = await db.product.findMany({
-      select: {
-        id: true,
-        name: true,
-        price: true,
-        imageUrl: true,
-        category: {
-          select: {
-            id: true,
-            name: true,
+      const whereClause: Prisma.ProductWhereInput = {};
+
+      if (input.categoryId !== "ALL") {
+        whereClause.categoryId = input.categoryId;
+      }
+
+      if (input.search) {
+        whereClause.OR = [
+          { name: { contains: input.search, mode: "insensitive" } },
+          {
+            category: { name: { contains: input.search, mode: "insensitive" } },
           },
+        ];
+      }
+
+      const product = await db.product.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          imageUrl: true,
         },
-      },
-    });
+      });
 
-    return products;
-  }),
+      return product;
+    }),
 
+  // GET/READ PRODUCT
+  getProductById: protectedProcedure
+    .input(
+      z.object({
+        productId: z.string().uuid(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { db } = ctx;
+
+      const product = await db.product.findUnique({
+        where: {
+          id: input.productId,
+        },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          imageUrl: true,
+        },
+      });
+
+      if (!product) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Product not found",
+        });
+      }
+
+      return product;
+    }),
+
+  // CREATE PRODUCT
   createProduct: protectedProcedure
     .input(
       z.object({
-        name: z.string().min(3, "Minimum of 3 characters"),
-        price: z.number().min(1000),
+        name: z.string().min(3).max(50),
+        price: z.coerce.number().min(1000),
         categoryId: z.string(),
         imageUrl: z.string().url(),
       }),
@@ -69,40 +133,40 @@ export const productRouter = createTRPCRouter({
     return data;
   }),
 
-  deleteProductById: protectedProcedure
-    .input(
-      z.object({
-        id: z.string(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const { db } = ctx;
+  // deleteProductImage: protectedProcedure
+  //   .input(z.object({ paths: z.array(z.string()) }))
+  //   .mutation(async ({ input }) => {
+  //     const { error } = await supabaseAdmin.storage
+  //       .from(Bucket.ProductImages)
+  //       .remove(input.paths);
 
-      const product = await db.product.delete({
-        where: {
-          id: input.id,
-        },
-      });
+  //     if (error) {
+  //       throw new TRPCError({
+  //         code: "INTERNAL_SERVER_ERROR",
+  //         message: error.message,
+  //       });
+  //     }
 
-      return product;
-    }),
+  //     return { success: true };
+  //   }),
 
+  // UPDATE PRODUCT
   editProduct: protectedProcedure
     .input(
       z.object({
-        id: z.string(),
-        name: z.string().min(3, "Minimum of 3 characters"),
-        price: z.number().min(1000),
+        productId: z.string(),
+        name: z.string().min(3).max(50),
+        price: z.coerce.number().min(1000),
         categoryId: z.string(),
-        // imageUrl: z.string().url(),
+        imageUrl: z.string().url(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
 
-      const product = await db.product.update({
+      const editedProduct = await db.product.update({
         where: {
-          id: input.id,
+          id: input.productId,
         },
         data: {
           name: input.name,
@@ -112,10 +176,41 @@ export const productRouter = createTRPCRouter({
               id: input.categoryId,
             },
           },
-          imageUrl: "https://placehold.co/600x400",
+          imageUrl: input.imageUrl,
+        },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          category: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          imageUrl: true,
         },
       });
 
-      return product;
+      return editedProduct;
+    }),
+
+  // DELETE PRODUCT
+  deleteProduct: protectedProcedure
+    .input(
+      z.object({
+        productId: z.string(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { db } = ctx;
+
+      const deletedProduct = await db.product.delete({
+        where: {
+          id: input.productId,
+        },
+      });
+
+      return deletedProduct;
     }),
 });
