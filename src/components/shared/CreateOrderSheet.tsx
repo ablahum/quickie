@@ -94,16 +94,21 @@ export const CreateOrderSheet = ({
   open,
   onOpenChange,
 }: CreateOrderSheetProps) => {
+  // GLOBAL STATE ------------------------------------------------
   const cartStore = useCartStore();
 
+  // LOCAL STATE -------------------------------------------------
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
-  const subtotal = cartStore.items.reduce((a, b) => {
+  // CALCULATE THE PRICE + TAX
+  const subTotal = cartStore.items.reduce((a, b) => {
     return a + b.price * b.quantity;
   }, 0);
-  const tax = useMemo(() => subtotal * 0.1, [subtotal]);
-  const grandTotal = useMemo(() => subtotal + tax, [subtotal, tax]);
+  const tax = useMemo(() => subTotal * 0.1, [subTotal]);
+  const grandTotal = useMemo(() => subTotal + tax, [subTotal, tax]);
 
+  // API CALLS ---------------------------------------------------
+  // create order
   const {
     mutate: createOrder,
     isPending: isPendingCreateOrder,
@@ -117,6 +122,35 @@ export const CreateOrderSheet = ({
     },
   });
 
+  // simulate payment
+  const { mutate: simulatePayment, isPending: isPendingSimulatePayment } =
+    api.order.simulatePayment.useMutation({
+      onSuccess: () => {
+        // toast("Payment simulated successfully");
+        alert("Payment simulated successfully");
+      },
+    });
+
+  // check order status
+  const {
+    mutate: checkOrderStatus,
+    data: orderPaid,
+    isPending: isPendingCheckOrderStatus,
+    reset: resetCheckOrderStatus,
+  } = api.order.checkOrderStatus.useMutation({
+    onSuccess: (isPaid) => {
+      if (isPaid) {
+        cartStore.clearCart();
+        return;
+      }
+    },
+  });
+
+  const isPaid = orderPaid === true;
+  const isPendingCheckStatus = isPendingCheckOrderStatus || isPaid;
+
+  // HANDLERS ----------------------------------------------------
+  // increase/decrease the product quantity
   const handleQuantityChange = (id: string, quantity: number) => {
     if (quantity !== 0) {
       cartStore.updateQuantity(id, quantity);
@@ -126,6 +160,7 @@ export const CreateOrderSheet = ({
     }
   };
 
+  // create order and generate QR code
   const handleCreateOrder = () => {
     if (!cartStore.items.length) {
       // toast("Cart is empty. Please add items to the cart.");
@@ -141,33 +176,7 @@ export const CreateOrderSheet = ({
     });
   };
 
-  const { mutate: simulatePayment, isPending: isPendingSimulatePayment } =
-    api.order.simulatePayment.useMutation({
-      onSuccess: () => {
-        // toast("Payment simulated successfully");
-        alert("Payment simulated successfully");
-      },
-    });
-
-  const {
-    mutate: checkOrderStatus,
-    data: orderPaid,
-    isPending: isPendingCheckOrderStatus,
-    reset: resetCheckOrderStatus,
-  } = api.order.checkOrderStatus.useMutation({
-    onSuccess: () => {
-      console.log(orderPaid);
-      // console.log(isPendingCheckOrderStatus);
-
-      // if (orderPaid) {
-      cartStore.clearCart();
-      //   return;
-      // }
-    },
-  });
-
-  const isPendingCheckStatus = isPendingCheckOrderStatus || orderPaid;
-
+  // check payment status
   const handleRefresh = () => {
     if (!createdOrder) return;
 
@@ -176,6 +185,7 @@ export const CreateOrderSheet = ({
     });
   };
 
+  // simulate the payment
   const handleSimulatePayment = () => {
     if (!createdOrder) return;
 
@@ -184,6 +194,7 @@ export const CreateOrderSheet = ({
     });
   };
 
+  // close the modal
   const handleClosePaymentDialog = () => {
     setPaymentDialogOpen(false);
     onOpenChange(false);
@@ -225,7 +236,7 @@ export const CreateOrderSheet = ({
 
             <div className="grid grid-cols-2 gap-2">
               <p>Subtotal</p>
-              <p className="place-self-end">{toRupiah(subtotal)}</p>
+              <p className="place-self-end">{toRupiah(subTotal)}</p>
 
               <p>Tax</p>
               <p className="place-self-end">{toRupiah(tax)}</p>

@@ -1,4 +1,5 @@
 import { db } from "@/server/db";
+import { XenditStatus } from "@/types";
 import type { NextApiHandler } from "next";
 
 type XenditWebhookBody = {
@@ -8,7 +9,7 @@ type XenditWebhookBody = {
     amount: number;
     payment_request_id: string;
     reference_id: string;
-    status: "SUCCEEDED" | "FAILED";
+    status: XenditStatus.SUCCEEDED | XenditStatus.FAILED;
   };
 };
 
@@ -28,7 +29,7 @@ const handler: NextApiHandler = async (req, res) => {
 
   if (!order) return res.status(404).send("Order not found");
 
-  if (body.data.status !== "SUCCEEDED") return res.status(422);
+  if (body.data.status !== XenditStatus.SUCCEEDED) return res.status(422);
 
   await db.order.update({
     where: {
