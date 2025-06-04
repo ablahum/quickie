@@ -10,6 +10,102 @@ import { OrderStatus, type Prisma } from "@prisma/client";
 import { XenditStatus } from "@/types";
 
 export const orderRouter = createTRPCRouter({
+  // GET/READ ORDERS
+  getOrders: protectedProcedure
+    .input(
+      z.object({
+        status: z.enum(["ALL", ...Object.keys(OrderStatus)]).default("All"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const { db } = ctx;
+      const whereClause: Prisma.OrderWhereInput = {};
+
+      switch (input.status) {
+        case OrderStatus.AWAITING_PAYMENT:
+          whereClause.status = OrderStatus.AWAITING_PAYMENT;
+          break;
+        case OrderStatus.PROCESSING:
+          whereClause.status = OrderStatus.PROCESSING;
+          break;
+        case OrderStatus.DONE:
+          whereClause.status = OrderStatus.DONE;
+          break;
+      }
+
+      const orders = await db.order.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          grandTotal: true,
+          status: true,
+          paidAt: true,
+          _count: {
+            select: {
+              orderItems: true,
+            },
+          },
+        },
+      });
+      return orders;
+    }),
+
+  // GET/READ SALES REPORT
+  getSalesReport: protectedProcedure.query(async ({ ctx }) => {
+    const { db } = ctx;
+
+    const paidOrdersQuery = db.order.findMany({
+      where: {
+        paidAt: {
+          not: null,
+        },
+      },
+      select: {
+        grandTotal: true,
+      },
+    });
+
+    const ongoingOrdersQuery = db.order.findMany({
+      where: {
+        status: {
+          not: "DONE",
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const completedOrderQuery = db.order.findMany({
+      where: {
+        status: "DONE",
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    const [paidOrders, ongoingOrders, completedOrders] = await Promise.all([
+      paidOrdersQuery,
+      ongoingOrdersQuery,
+      completedOrderQuery,
+    ]);
+
+    const totalRevenue = paidOrders.reduce((a, b) => {
+      return a + b.grandTotal;
+    }, 0);
+
+    const totalOngoingOrders = ongoingOrders.length;
+    const totalCompletedOrders = completedOrders.length;
+
+    return {
+      totalRevenue,
+      totalOngoingOrders,
+      totalCompletedOrders,
+    };
+  }),
+
+  // CREATE THE ORDER
   createOrder: protectedProcedure
     .input(
       z.object({
@@ -95,6 +191,7 @@ export const orderRouter = createTRPCRouter({
       };
     }),
 
+  // SIMULATE THE PAYMENT
   simulatePayment: protectedProcedure
     .input(
       z.object({
@@ -129,6 +226,7 @@ export const orderRouter = createTRPCRouter({
       });
     }),
 
+  // CHECK THE ORDER STATUS
   checkOrderStatus: protectedProcedure
     .input(
       z.object({
@@ -163,6 +261,7 @@ export const orderRouter = createTRPCRouter({
       return isPaid;
     }),
 
+  // FINISH THE ORDER
   finishOrder: protectedProcedure
     .input(
       z.object({
@@ -206,97 +305,4 @@ export const orderRouter = createTRPCRouter({
         },
       });
     }),
-
-  getOrders: protectedProcedure
-    .input(
-      z.object({
-        status: z.enum(["ALL", ...Object.keys(OrderStatus)]).default("All"),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-      const whereClause: Prisma.OrderWhereInput = {};
-
-      switch (input.status) {
-        case OrderStatus.AWAITING_PAYMENT:
-          whereClause.status = OrderStatus.AWAITING_PAYMENT;
-          break;
-        case OrderStatus.PROCESSING:
-          whereClause.status = OrderStatus.PROCESSING;
-          break;
-        case OrderStatus.DONE:
-          whereClause.status = OrderStatus.DONE;
-          break;
-      }
-
-      const orders = await db.order.findMany({
-        where: whereClause,
-        select: {
-          id: true,
-          grandTotal: true,
-          status: true,
-          paidAt: true,
-          _count: {
-            select: {
-              orderItems: true,
-            },
-          },
-        },
-      });
-      return orders;
-    }),
-
-  getSalesReport: protectedProcedure.query(async ({ ctx }) => {
-    const { db } = ctx;
-
-    const paidOrdersQuery = db.order.findMany({
-      where: {
-        paidAt: {
-          not: null,
-        },
-      },
-      select: {
-        grandTotal: true,
-      },
-    });
-
-    const ongoingOrdersQuery = db.order.findMany({
-      where: {
-        status: {
-          not: "DONE",
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const completedOrderQuery = db.order.findMany({
-      where: {
-        status: "DONE",
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    const [paidOrders, ongoingOrders, completedOrders] = await Promise.all([
-      paidOrdersQuery,
-      ongoingOrdersQuery,
-      completedOrderQuery,
-    ]);
-
-    const totalRevenue = paidOrders.reduce((a, b) => {
-      return a + b.grandTotal;
-    }, 0);
-
-    const totalOngoingOrders = ongoingOrders.length;
-    const totalCompletedOrders = completedOrders.length;
-
-    return {
-      totalRevenue,
-      totalOngoingOrders,
-      totalCompletedOrders,
-    };
-  }),
 });
