@@ -105,7 +105,7 @@ export const orderRouter = createTRPCRouter({
     };
   }),
 
-  // CREATE THE ORDER
+  // CREATE AN ORDER
   createOrder: protectedProcedure
     .input(
       z.object({
@@ -226,7 +226,7 @@ export const orderRouter = createTRPCRouter({
       });
     }),
 
-  // CHECK THE ORDER STATUS
+  // CHECK AN ORDER STATUS
   checkOrderStatus: protectedProcedure
     .input(
       z.object({
@@ -261,7 +261,7 @@ export const orderRouter = createTRPCRouter({
       return isPaid;
     }),
 
-  // FINISH THE ORDER
+  // FINISH AN ORDER
   finishOrder: protectedProcedure
     .input(
       z.object({

@@ -22,7 +22,7 @@ export const categoryRouter = createTRPCRouter({
     return categories;
   }),
 
-  // CREATE CATEGORY
+  // CREATE A CATEGORY
   createCategory: protectedProcedure
     .input(
       z.object({
@@ -46,55 +46,43 @@ export const categoryRouter = createTRPCRouter({
       return newCategory;
     }),
 
-  // UPDATE CATEGORY
+  // UPDATE A CATEGORY
   editCategory: protectedProcedure
     .input(
       z.object({
-        categoryId: z.string(),
+        id: z.string(),
         name: z.string().min(3, "Minimum 3 characters"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
 
-      const editedCategory = await db.category.update({
+      const updatedCategory = await db.category.update({
         where: {
-          id: input.categoryId,
+          id: input.id,
         },
         data: {
           name: input.name,
         },
-        select: {
-          id: true,
-          name: true,
-          productCount: true,
-        },
       });
 
-      return editedCategory;
+      return updatedCategory;
     }),
 
-  // DELETE CATEGORY
+  // DELETE A CATEGORY
   deleteCategory: protectedProcedure
     .input(
       z.object({
-        categoryId: z.string(),
+        id: z.string(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
 
-      const deletedCategory = await db.category.delete({
+      await db.category.delete({
         where: {
-          id: input.categoryId,
-        },
-        select: {
-          id: true,
-          name: true,
-          productCount: true,
+          id: input.id,
         },
       });
-
-      return deletedCategory;
     }),
 });
