@@ -16,25 +16,27 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/utils/api";
 import { useCartStore } from "@/store/cart";
 import { toast } from "sonner";
-// import { useDebounce } from "@/hooks/use-debounce";
-// import LoadingSpinner from "@/components/ui/loading-spinner";
-// import BadgeNumber from "@/components/ui/badge-number";
-import { useDebounce } from "../../hooks/use-debounce";
-import LoadingSpinner from "../../components/ui/loading-spinner";
-import BadgeNumber from "../../components/ui/badge-number";
+import { useDebounce } from "@/hooks/use-debounce";
+import LoadingSpinner from "@/components/ui/loading-spinner";
+import BadgeNumber from "@/components/ui/badge-number";
 
 const DashboardPage: NextPageWithLayout = () => {
+  // GLOBAL STATE ------------------------------------------------
   const cartStore = useCartStore();
 
+  // LOCAL STATE -------------------------------------------------
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [orderSheetOpen, setOrderSheetOpen] = useState(false);
 
   const debouncedSearchQuery = useDebounce<string>(searchQuery, 300);
 
+  // API CALLS ---------------------------------------------------
+  // get/read categories
   const { data: categories, isPending: isPendingCategories } =
     api.category.getCategories.useQuery();
 
+  // get/read products
   const { data: products, isPending: isPendingProducts } =
     api.product.getProducts.useQuery({
       categoryId: selectedCategory,
@@ -43,10 +45,12 @@ const DashboardPage: NextPageWithLayout = () => {
 
   const totalProducts = products?.length ?? 0;
 
+  // HANDLERS ----------------------------------------------------
   const handleCategoryClick = (categoryId: string) => {
     setSelectedCategory(categoryId);
   };
 
+  // add item to cart
   const handleAddToCart = (productId: string) => {
     const productToAdd = products?.find((product) => product.id === productId);
 
