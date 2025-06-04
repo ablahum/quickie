@@ -15,7 +15,6 @@ import type { NextPageWithLayout } from "../_app";
 import { Button } from "@/components/ui/button";
 import { api } from "@/utils/api";
 import { useCartStore } from "@/store/cart";
-import { toast } from "sonner";
 import { useDebounce } from "@/hooks/use-debounce";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import BadgeNumber from "@/components/ui/badge-number";
@@ -75,7 +74,7 @@ const DashboardPage: NextPageWithLayout = () => {
           <div className="space-y-1">
             <DashboardTitle>Dashboard</DashboardTitle>
             <DashboardDescription>
-              Welcome to your Hammercode POS system dashboard.
+              Welcome to a simple Point of Sales system dashboard.
             </DashboardDescription>
           </div>
 

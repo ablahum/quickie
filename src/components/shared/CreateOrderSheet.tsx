@@ -20,7 +20,6 @@ import {
 import { PaymentQRCode } from "./PaymentQrCode";
 import { useCartStore } from "@/store/cart";
 import { api } from "@/utils/api";
-import { toast } from "sonner";
 
 type OrderItemProps = {
   id: string;
@@ -38,52 +37,50 @@ const OrderItem = ({
   quantity,
   imageUrl,
   onQuantityChange,
-}: OrderItemProps) => {
-  return (
-    <div className="flex gap-3" key={id}>
-      <div className="relative aspect-square h-20 shrink-0 overflow-hidden rounded-xl">
-        <Image
-          src={imageUrl}
-          alt={name}
-          fill
-          unoptimized
-          className="object-cover"
-        />
+}: OrderItemProps) => (
+  <div className="flex gap-3" key={id}>
+    <div className="relative aspect-square h-20 shrink-0 overflow-hidden rounded-xl">
+      <Image
+        src={imageUrl}
+        alt={name}
+        fill
+        unoptimized
+        className="object-cover"
+      />
+    </div>
+
+    <div className="flex w-full flex-col justify-between">
+      <div className="flex flex-col">
+        <p>{name}</p>
+        <p className="text-muted-foreground text-sm">
+          {toRupiah(price)} x {quantity}
+        </p>
       </div>
 
-      <div className="flex w-full flex-col justify-between">
-        <div className="flex flex-col">
-          <p>{name}</p>
-          <p className="text-muted-foreground text-sm">
-            {toRupiah(price)} x {quantity}
-          </p>
-        </div>
+      <div className="flex w-full justify-between">
+        <p className="font-medium">{toRupiah(quantity * price)}</p>
 
-        <div className="flex w-full justify-between">
-          <p className="font-medium">{toRupiah(quantity * price)}</p>
+        <div className="flex items-center gap-3">
+          <button
+            className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1"
+            onClick={() => onQuantityChange(id, Math.max(0, quantity - 1))}
+          >
+            <Minus className="h-4 w-4" />
+          </button>
 
-          <div className="flex items-center gap-3">
-            <button
-              className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1"
-              onClick={() => onQuantityChange(id, Math.max(0, quantity - 1))}
-            >
-              <Minus className="h-4 w-4" />
-            </button>
+          <span className="text-sm">{quantity}</span>
 
-            <span className="text-sm">{quantity}</span>
-
-            <button
-              className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1"
-              onClick={() => onQuantityChange(id, quantity + 1)}
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          </div>
+          <button
+            className="bg-secondary hover:bg-secondary/80 cursor-pointer rounded-full p-1"
+            onClick={() => onQuantityChange(id, quantity + 1)}
+          >
+            <Plus className="h-4 w-4" />
+          </button>
         </div>
       </div>
     </div>
-  );
-};
+  </div>
+);
 
 type CreateOrderSheetProps = {
   open: boolean;
@@ -115,7 +112,6 @@ export const CreateOrderSheet = ({
     data: createdOrder,
   } = api.order.createOrder.useMutation({
     onSuccess: () => {
-      // toast("Order created");
       alert("Order created");
 
       setPaymentDialogOpen(true);
@@ -126,7 +122,6 @@ export const CreateOrderSheet = ({
   const { mutate: simulatePayment, isPending: isPendingSimulatePayment } =
     api.order.simulatePayment.useMutation({
       onSuccess: () => {
-        // toast("Payment simulated successfully");
         alert("Payment simulated successfully");
       },
     });
@@ -163,7 +158,6 @@ export const CreateOrderSheet = ({
   // create order and generate QR code
   const handleCreateOrder = () => {
     if (!cartStore.items.length) {
-      // toast("Cart is empty. Please add items to the cart.");
       alert("Cart is empty. Please add items to the cart.");
       return;
     }

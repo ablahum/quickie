@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const categoryRouter = createTRPCRouter({
-  // GET CATEGORIES
+  // GET/READ CATEGORIES
   getCategories: protectedProcedure.query(async ({ ctx }) => {
     const { db } = ctx;
 

@@ -25,12 +25,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { NextPageWithLayout } from "../_app";
 import { api } from "@/utils/api";
-import { toast } from "sonner";
 import type { Category } from "@prisma/client";
 
 const CategoriesPage: NextPageWithLayout = () => {
   const apiUtils = api.useUtils();
 
+  // LOCAL STATE -------------------------------------------------
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
@@ -40,7 +40,7 @@ const CategoriesPage: NextPageWithLayout = () => {
     "createdAt" | "updatedAt"
   > | null>(null);
 
-  // Forms =====================================================================
+  // FORMS -------------------------------------------------------
   const createCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
   });
@@ -52,49 +52,69 @@ const CategoriesPage: NextPageWithLayout = () => {
     },
   });
 
-  // Queries ===================================================================
+  // API CALLS ---------------------------------------------------
+  // get/read categories
   const { data: categories } = api.category.getCategories.useQuery();
 
+  // create category
   const { mutate: createCategory, isPending: isPendingCreateCategory } =
     api.category.createCategory.useMutation({
       onSuccess: async () => {
         await apiUtils.category.getCategories.invalidate();
 
-        // toast("Category created successfully!");
         alert("Category created successfully!");
         setCreateCategoryDialogOpen(false);
         createCategoryForm.reset();
       },
-    });
-
-  const { mutate: deleteCategoryById, isPending: isPendingDeleteCategory } =
-    api.category.deleteCategory.useMutation({
-      onSuccess: async () => {
-        await apiUtils.category.getCategories.invalidate();
-
-        // toast("Category deleted successfully!");
-        alert("Category deleted successfully!");
-        setCategoryToDelete(null);
+      onError: (error) => {
+        const message =
+          error.data?.zodError?.fieldErrors?.name?.[0] ?? error.message;
+        alert(message);
       },
     });
 
+  // update category
   const { mutate: editCategory, isPending: isPendingEditCategory } =
     api.category.editCategory.useMutation({
       onSuccess: async () => {
         await apiUtils.category.getCategories.invalidate();
 
-        // toast("Category edited successfully!");
         alert("Category edited successfully!");
         setEditCategoryDialogOpen(false);
         editCategoryForm.reset();
       },
+      onError: (error) => {
+        const message =
+          error.data?.zodError?.fieldErrors?.name?.[0] ?? error.message;
+        alert(message);
+      },
     });
 
-  // Handlers ===================================================================
+  // delete category
+  const { mutate: deleteCategoryById, isPending: isPendingDeleteCategory } =
+    api.category.deleteCategory.useMutation({
+      onSuccess: async () => {
+        await apiUtils.category.getCategories.invalidate();
+
+        alert("Category deleted successfully!");
+        setCategoryToDelete(null);
+      },
+    });
+
+  // HANDLERS ----------------------------------------------------
+  // create category
   const handleSubmitCreateCategory = (data: CategoryFormSchema) => {
     createCategory({
       name: data.name,
     });
+  };
+
+  // update category
+  const handleClickEditCategory = (
+    category: Omit<Category, "createdAt" | "updatedAt">,
+  ) => {
+    setEditCategoryDialogOpen(true);
+    setCategoryToEdit(category);
   };
 
   const handleSubmitEditCategory = (data: CategoryFormSchema) => {
@@ -106,13 +126,7 @@ const CategoriesPage: NextPageWithLayout = () => {
     });
   };
 
-  const handleClickEditCategory = (
-    category: Omit<Category, "createdAt" | "updatedAt">,
-  ) => {
-    setEditCategoryDialogOpen(true);
-    setCategoryToEdit(category);
-  };
-
+  // delete category
   const handleClickDeleteCategory = (categoryId: string) => {
     setCategoryToDelete(categoryId);
   };
