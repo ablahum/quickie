@@ -22,16 +22,38 @@ export async function uploadFileToSignedUrl({
       .from(bucket)
       .uploadToSignedUrl(path, token, file);
 
-    if (error) throw error;
+    if (error) {
+      throw error;
+    }
 
-    if (!data) throw new Error("No data returned from uploadToSignedUrl");
+    if (!data) {
+      throw new Error("No data returned from uploadToSignedUrl");
+    }
 
-    const fileUrl = supabaseClient.storage
-      .from(bucket)
-      .getPublicUrl(data?.path);
+    const fileUrl = supabaseClient.storage.from(bucket).getPublicUrl(data.path);
 
-    return fileUrl;
+    return fileUrl.data.publicUrl;
   } catch (error) {
     throw error;
   }
+}
+
+export async function deleteFileFromBucket({
+  path,
+  bucket,
+}: {
+  path: string;
+  bucket: Bucket;
+}) {
+  try {
+    await supabaseClient.storage.from(bucket).remove([path]);
+  } catch (error) {
+    throw error;
+  }
+}
+
+export function extractPathFromSupabaseUrl(url: string): string | null {
+  const regex = /\/storage\/v1\/object\/public\/(.+)$/;
+  const match = regex.exec(url);
+  return match && typeof match[1] === "string" ? match[1] : null;
 }

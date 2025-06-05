@@ -25,20 +25,24 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import type { NextPageWithLayout } from "../_app";
 import { api } from "@/utils/api";
-import type { Category } from "@prisma/client";
+import { Notification } from "@/components/ui/notification";
+
+type UpdateCategorySchema = {
+  id: string;
+  name: string;
+};
 
 const CategoriesPage: NextPageWithLayout = () => {
-  const apiUtils = api.useUtils();
-
-  // LOCAL STATE -------------------------------------------------
+  // LOCAL STATES ------------------------------------------------
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: "success" | "error";
+  } | null>(null);
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
   const [editCategoryDialogOpen, setEditCategoryDialogOpen] = useState(false);
+  const [categoryToUpdate, setCategoryToUpdate] = useState<string | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
-  const [categoryToEdit, setCategoryToEdit] = useState<Omit<
-    Category,
-    "createdAt" | "updatedAt"
-  > | null>(null);
 
   // FORMS -------------------------------------------------------
   const createCategoryForm = useForm<CategoryFormSchema>({
@@ -47,107 +51,100 @@ const CategoriesPage: NextPageWithLayout = () => {
 
   const editCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
-    values: {
-      name: categoryToEdit?.name ?? "",
-    },
   });
+
+  const apiUtils = api.useUtils();
+
+  const showNotification = (message: string, type: "success" | "error") =>
+    setNotification({ message, type });
 
   // API CALLS ---------------------------------------------------
   // get/read categories
-  const { data: categories } = api.category.getCategories.useQuery();
+  const { data: categories, isLoading: isCategoryLoading } =
+    api.category.getCategories.useQuery();
 
-  // create category
-  const { mutate: createCategory, isPending: isPendingCreateCategory } =
-    api.category.createCategory.useMutation({
-      onSuccess: async () => {
-        await apiUtils.category.getCategories.invalidate();
+  // create a category
+  const { mutate: createCategory } = api.category.createCategory.useMutation({
+    onSuccess: async () => {
+      await apiUtils.category.getCategories.invalidate();
 
-        alert("Category created successfully!");
-        setCreateCategoryDialogOpen(false);
-        createCategoryForm.reset();
-      },
-      onError: (error) => {
-        const message =
-          error.data?.zodError?.fieldErrors?.name?.[0] ?? error.message;
-        alert(message);
-      },
-    });
+      showNotification("Successfully created a new category", "success");
+      setCreateCategoryDialogOpen(false);
+      createCategoryForm.reset();
+    },
+  });
 
-  // update category
-  const { mutate: editCategory, isPending: isPendingEditCategory } =
-    api.category.editCategory.useMutation({
-      onSuccess: async () => {
-        await apiUtils.category.getCategories.invalidate();
+  // update a category
+  const { mutate: editCategory } = api.category.editCategory.useMutation({
+    onSuccess: async () => {
+      await apiUtils.category.getCategories.invalidate();
 
-        alert("Category edited successfully!");
-        setEditCategoryDialogOpen(false);
-        editCategoryForm.reset();
-      },
-      onError: (error) => {
-        const message =
-          error.data?.zodError?.fieldErrors?.name?.[0] ?? error.message;
-        alert(message);
-      },
-    });
+      showNotification("Successfully edited a category", "success");
+      editCategoryForm.reset();
+      setCategoryToUpdate(null);
+      setEditCategoryDialogOpen(false);
+    },
+  });
 
-  // delete category
-  const { mutate: deleteCategoryById, isPending: isPendingDeleteCategory } =
-    api.category.deleteCategory.useMutation({
-      onSuccess: async () => {
-        await apiUtils.category.getCategories.invalidate();
+  // delete a category
+  const { mutate: deleteCategory } = api.category.deleteCategory.useMutation({
+    onSuccess: async () => {
+      await apiUtils.category.getCategories.invalidate();
 
-        alert("Category deleted successfully!");
-        setCategoryToDelete(null);
-      },
-    });
+      showNotification("Successfully deleted a category", "success");
+      setCategoryToDelete(null);
+    },
+  });
 
   // HANDLERS ----------------------------------------------------
-  // create category
-  const handleSubmitCreateCategory = (data: CategoryFormSchema) => {
-    createCategory({
-      name: data.name,
-    });
+  // create a category
+  const handleCreate = (data: CategoryFormSchema) =>
+    createCategory({ name: data.name });
+
+  // update a category
+  const handleUpdate = (data: CategoryFormSchema) => {
+    if (!categoryToUpdate) return;
+
+    editCategory({ name: data.name, id: categoryToUpdate });
   };
 
-  // update category
-  const handleClickEditCategory = (
-    category: Omit<Category, "createdAt" | "updatedAt">,
-  ) => {
+  const handleClickUpdate = (category: UpdateCategorySchema) => {
+    setCategoryToUpdate(category.id);
     setEditCategoryDialogOpen(true);
-    setCategoryToEdit(category);
+
+    editCategoryForm.reset({ name: category.name });
   };
 
-  const handleSubmitEditCategory = (data: CategoryFormSchema) => {
-    if (!categoryToEdit) return;
-
-    editCategory({
-      categoryId: categoryToEdit.id,
-      name: data.name,
-    });
-  };
-
-  // delete category
-  const handleClickDeleteCategory = (categoryId: string) => {
-    setCategoryToDelete(categoryId);
-  };
-
-  const handleConfirmDeleteCategory = () => {
+  // delete a category
+  const handleDelete = () => {
     if (!categoryToDelete) return;
 
-    deleteCategoryById({ categoryId: categoryToDelete });
+    deleteCategory({ id: categoryToDelete });
   };
+
+  const handleClickDelete = (id: string) => setCategoryToDelete(id);
 
   return (
     <>
       <DashboardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center justify-between">
           <div className="space-y-1">
             <DashboardTitle>Category Management</DashboardTitle>
+
             <DashboardDescription>
               Organize your products with custom categories.
             </DashboardDescription>
           </div>
 
+          {notification && (
+            <Notification
+              message={notification.message}
+              type={notification.type}
+              onClose={() => setNotification(null)}
+            />
+          )}
+
+          {/* MODAL FOR CREATE A CATEGORY */}
           <AlertDialog
             open={createCategoryDialogOpen}
             onOpenChange={setCreateCategoryDialogOpen}
@@ -160,19 +157,11 @@ const CategoriesPage: NextPageWithLayout = () => {
                 <AlertDialogTitle>Add New Category</AlertDialogTitle>
               </AlertDialogHeader>
               <Form {...createCategoryForm}>
-                <CategoryForm onSubmit={handleSubmitCreateCategory} />
+                <CategoryForm onSubmit={handleCreate} />
               </Form>
-
               <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => createCategoryForm.reset()}>
-                  Cancel
-                </AlertDialogCancel>
-                <Button
-                  onClick={createCategoryForm.handleSubmit(
-                    handleSubmitCreateCategory,
-                  )}
-                  loading={isPendingCreateCategory}
-                >
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <Button onClick={createCategoryForm.handleSubmit(handleCreate)}>
                   Create Category
                 </Button>
               </AlertDialogFooter>
@@ -181,20 +170,28 @@ const CategoriesPage: NextPageWithLayout = () => {
         </div>
       </DashboardHeader>
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 lg:gap-4">
-        {categories?.map((category) => {
-          return (
+      <div className="grid grid-cols-4 gap-4">
+        {isCategoryLoading ? (
+          <p>Loading...</p>
+        ) : (
+          categories?.map((category) => (
             <CategoryCatalogCard
               key={category.id}
               name={category.name}
-              productCount={category._count.products}
-              onEdit={() => handleClickEditCategory(category)}
-              onDelete={() => handleClickDeleteCategory(category.id)}
+              productCount={category.productCount}
+              onDelete={() => handleClickDelete(category.id)}
+              onEdit={() =>
+                handleClickUpdate({
+                  id: category.id,
+                  name: category.name,
+                })
+              }
             />
-          );
-        })}
+          ))
+        )}
       </div>
 
+      {/* MODAL FOR UPDATE A CATEGORY */}
       <AlertDialog
         open={editCategoryDialogOpen}
         onOpenChange={setEditCategoryDialogOpen}
@@ -204,23 +201,18 @@ const CategoriesPage: NextPageWithLayout = () => {
             <AlertDialogTitle>Edit Category</AlertDialogTitle>
           </AlertDialogHeader>
           <Form {...editCategoryForm}>
-            <CategoryForm onSubmit={handleSubmitEditCategory} />
+            <CategoryForm onSubmit={handleUpdate} />
           </Form>
-
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => editCategoryForm.reset()}>
-              Cancel
-            </AlertDialogCancel>
-            <Button
-              onClick={editCategoryForm.handleSubmit(handleSubmitEditCategory)}
-              loading={isPendingEditCategory}
-            >
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <Button onClick={editCategoryForm.handleSubmit(handleUpdate)}>
               Edit Category
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* MODAL FOR DELETE A CATEGORY */}
       <AlertDialog
         open={!!categoryToDelete}
         onOpenChange={(open) => {
@@ -239,11 +231,7 @@ const CategoriesPage: NextPageWithLayout = () => {
           </AlertDialogDescription>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDeleteCategory}
-              loading={isPendingDeleteCategory}
-            >
+            <Button variant="destructive" onClick={handleDelete}>
               Delete
             </Button>
           </AlertDialogFooter>
