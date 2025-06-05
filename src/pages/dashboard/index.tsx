@@ -18,19 +18,31 @@ import { useCartStore } from "@/store/cart";
 import { useDebounce } from "@/hooks/use-debounce";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import BadgeNumber from "@/components/ui/badge-number";
+import { NotificationType } from "@/types";
+import { Notification } from "@/components/ui/notification";
 
 const DashboardPage: NextPageWithLayout = () => {
-  // GLOBAL STATE ------------------------------------------------
+  // GLOBAL STATE -----------------------------------------------------
   const cartStore = useCartStore();
 
-  // LOCAL STATE -------------------------------------------------
+  // LOCAL STATES -----------------------------------------------------
+  const [orderSheetOpen, setOrderSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("ALL");
-  const [orderSheetOpen, setOrderSheetOpen] = useState(false);
+  const [notification, setNotification] = useState<{
+    message: string;
+    type: NotificationType.SUCCESS | NotificationType.FAILED;
+  } | null>(null);
 
+  // HOOKS ------------------------------------------------------------
   const debouncedSearchQuery = useDebounce<string>(searchQuery, 300);
 
-  // API CALLS ---------------------------------------------------
+  const showNotification = (
+    message: string,
+    type: NotificationType.SUCCESS | NotificationType.FAILED,
+  ) => setNotification({ message, type });
+
+  // API CALLS --------------------------------------------------------
   // get/read categories
   const { data: categories, isPending: isPendingCategories } =
     api.category.getCategories.useQuery();
@@ -42,20 +54,17 @@ const DashboardPage: NextPageWithLayout = () => {
       search: debouncedSearchQuery,
     });
 
-  const totalProducts = products?.length ?? 0;
-
-  // HANDLERS ----------------------------------------------------
-  const handleCategoryClick = (categoryId: string) => {
+  // HANDLERS ---------------------------------------------------------
+  const handleCategoryChange = (categoryId: string) =>
     setSelectedCategory(categoryId);
-  };
 
   // add item to cart
   const handleAddToCart = (productId: string) => {
     const productToAdd = products?.find((product) => product.id === productId);
 
     if (!productToAdd) {
-      // toast("Product not found");
-      alert("Product not found");
+      showNotification("Product not found", NotificationType.FAILED);
+
       return;
     }
 
@@ -67,16 +76,27 @@ const DashboardPage: NextPageWithLayout = () => {
     });
   };
 
+  const totalProducts = products?.length ?? 0;
+
   return (
     <>
       <DashboardHeader>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="space-y-1">
             <DashboardTitle>Dashboard</DashboardTitle>
+
             <DashboardDescription>
               Welcome to a simple Point of Sales system dashboard.
             </DashboardDescription>
           </div>
+
+          {notification && (
+            <Notification
+              message={notification.message}
+              type={notification.type}
+              onClose={() => setNotification(null)}
+            />
+          )}
 
           {!!cartStore.items.length && (
             <Button
@@ -93,6 +113,7 @@ const DashboardPage: NextPageWithLayout = () => {
       <div className="space-y-6">
         <div className="relative">
           <Search className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
+
           <Input
             placeholder="Search products..."
             className="pl-10"
@@ -106,16 +127,18 @@ const DashboardPage: NextPageWithLayout = () => {
             name={searchQuery ? "Searched Products" : "All Categories"}
             productCount={totalProducts}
             isSelected={selectedCategory === "ALL"}
-            onClick={() => handleCategoryClick("ALL")}
+            onClick={() => handleCategoryChange("ALL")}
           />
+
           {isPendingCategories && <LoadingSpinner />}
+
           {categories?.map((category) => (
             <CategoryFilterCard
               key={category.id}
               name={category.name}
               productCount={category._count.products}
               isSelected={selectedCategory === category.id}
-              onClick={() => handleCategoryClick(category.id)}
+              onClick={() => handleCategoryChange(category.id)}
             />
           ))}
         </div>
@@ -137,7 +160,7 @@ const DashboardPage: NextPageWithLayout = () => {
               {products?.map((product) => (
                 <ProductMenuCard
                   key={product.id}
-                  productId={product.id}
+                  id={product.id}
                   name={product.name}
                   price={product.price}
                   imageUrl={
@@ -159,8 +182,8 @@ const DashboardPage: NextPageWithLayout = () => {
   );
 };
 
-DashboardPage.getLayout = (page: ReactElement) => {
-  return <DashboardLayout>{page}</DashboardLayout>;
-};
+DashboardPage.getLayout = (page: ReactElement) => (
+  <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default DashboardPage;

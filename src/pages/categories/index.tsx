@@ -26,6 +26,7 @@ import { useForm } from "react-hook-form";
 import type { NextPageWithLayout } from "../_app";
 import { api } from "@/utils/api";
 import { Notification } from "@/components/ui/notification";
+import { NotificationType } from "@/types";
 
 type UpdateCategorySchema = {
   id: string;
@@ -33,10 +34,10 @@ type UpdateCategorySchema = {
 };
 
 const CategoriesPage: NextPageWithLayout = () => {
-  // LOCAL STATES ------------------------------------------------
+  // LOCAL STATES -----------------------------------------------------
   const [notification, setNotification] = useState<{
     message: string;
-    type: "success" | "error";
+    type: NotificationType.SUCCESS | NotificationType.FAILED;
   } | null>(null);
   const [createCategoryDialogOpen, setCreateCategoryDialogOpen] =
     useState(false);
@@ -44,7 +45,7 @@ const CategoriesPage: NextPageWithLayout = () => {
   const [categoryToUpdate, setCategoryToUpdate] = useState<string | null>(null);
   const [categoryToDelete, setCategoryToDelete] = useState<string | null>(null);
 
-  // FORMS -------------------------------------------------------
+  // FORMS ------------------------------------------------------------
   const createCategoryForm = useForm<CategoryFormSchema>({
     resolver: zodResolver(categoryFormSchema),
   });
@@ -55,10 +56,12 @@ const CategoriesPage: NextPageWithLayout = () => {
 
   const apiUtils = api.useUtils();
 
-  const showNotification = (message: string, type: "success" | "error") =>
-    setNotification({ message, type });
+  const showNotification = (
+    message: string,
+    type: NotificationType.SUCCESS | NotificationType.FAILED,
+  ) => setNotification({ message, type });
 
-  // API CALLS ---------------------------------------------------
+  // API CALLS --------------------------------------------------------
   // get/read categories
   const { data: categories, isLoading: isCategoryLoading } =
     api.category.getCategories.useQuery();
@@ -68,9 +71,18 @@ const CategoriesPage: NextPageWithLayout = () => {
     onSuccess: async () => {
       await apiUtils.category.getCategories.invalidate();
 
-      showNotification("Successfully created a new category", "success");
+      showNotification(
+        "Successfully created a new category",
+        NotificationType.SUCCESS,
+      );
       setCreateCategoryDialogOpen(false);
       createCategoryForm.reset();
+    },
+    onError: (error) => {
+      const message =
+        error.data?.zodError?.fieldErrors?.name?.[0] ?? error.message;
+
+      showNotification(message, NotificationType.FAILED);
     },
   });
 
@@ -79,10 +91,19 @@ const CategoriesPage: NextPageWithLayout = () => {
     onSuccess: async () => {
       await apiUtils.category.getCategories.invalidate();
 
-      showNotification("Successfully edited a category", "success");
+      showNotification(
+        "Successfully edited a category",
+        NotificationType.SUCCESS,
+      );
       editCategoryForm.reset();
       setCategoryToUpdate(null);
       setEditCategoryDialogOpen(false);
+    },
+    onError: (error) => {
+      const message =
+        error.data?.zodError?.fieldErrors?.name?.[0] ?? error.message;
+
+      showNotification(message, NotificationType.FAILED);
     },
   });
 
@@ -91,12 +112,15 @@ const CategoriesPage: NextPageWithLayout = () => {
     onSuccess: async () => {
       await apiUtils.category.getCategories.invalidate();
 
-      showNotification("Successfully deleted a category", "success");
+      showNotification(
+        "Successfully deleted a category",
+        NotificationType.SUCCESS,
+      );
       setCategoryToDelete(null);
     },
   });
 
-  // HANDLERS ----------------------------------------------------
+  // HANDLERS ---------------------------------------------------------
   // create a category
   const handleCreate = (data: CategoryFormSchema) =>
     createCategory({ name: data.name });
@@ -152,15 +176,19 @@ const CategoriesPage: NextPageWithLayout = () => {
             <AlertDialogTrigger asChild>
               <Button>Add New Category</Button>
             </AlertDialogTrigger>
+
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Add New Category</AlertDialogTitle>
               </AlertDialogHeader>
+
               <Form {...createCategoryForm}>
                 <CategoryForm onSubmit={handleCreate} />
               </Form>
+
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
+
                 <Button onClick={createCategoryForm.handleSubmit(handleCreate)}>
                   Create Category
                 </Button>
@@ -200,11 +228,14 @@ const CategoriesPage: NextPageWithLayout = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Edit Category</AlertDialogTitle>
           </AlertDialogHeader>
+
           <Form {...editCategoryForm}>
             <CategoryForm onSubmit={handleUpdate} />
           </Form>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
+
             <Button onClick={editCategoryForm.handleSubmit(handleUpdate)}>
               Edit Category
             </Button>
@@ -225,12 +256,15 @@ const CategoriesPage: NextPageWithLayout = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Category</AlertDialogTitle>
           </AlertDialogHeader>
+
           <AlertDialogDescription>
             Are you sure you want to delete this category? This action cannot be
             undone.
           </AlertDialogDescription>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
+
             <Button variant="destructive" onClick={handleDelete}>
               Delete
             </Button>
@@ -241,8 +275,8 @@ const CategoriesPage: NextPageWithLayout = () => {
   );
 };
 
-CategoriesPage.getLayout = (page: ReactElement) => {
-  return <DashboardLayout>{page}</DashboardLayout>;
-};
+CategoriesPage.getLayout = (page: ReactElement) => (
+  <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default CategoriesPage;

@@ -265,7 +265,7 @@ export const orderRouter = createTRPCRouter({
   finishOrder: protectedProcedure
     .input(
       z.object({
-        orderId: z.string().uuid(),
+        id: z.string().uuid(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -273,7 +273,7 @@ export const orderRouter = createTRPCRouter({
 
       const order = await db.order.findUnique({
         where: {
-          id: input.orderId,
+          id: input.id,
         },
         select: {
           id: true,
