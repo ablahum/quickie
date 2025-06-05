@@ -26,7 +26,7 @@ export const categoryRouter = createTRPCRouter({
   createCategory: protectedProcedure
     .input(
       z.object({
-        name: z.string().min(3, "Minimum 3 characters"),
+        name: z.string().min(3, "Minimum 3 characters required"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -51,7 +51,7 @@ export const categoryRouter = createTRPCRouter({
     .input(
       z.object({
         id: z.string(),
-        name: z.string().min(3, "Minimum 3 characters"),
+        name: z.string().min(3, "Minimum 3 characters required"),
       }),
     )
     .mutation(async ({ ctx, input }) => {

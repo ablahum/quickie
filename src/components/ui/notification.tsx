@@ -1,14 +1,15 @@
+import { NotificationType } from "@/types";
 import { useEffect } from "react";
 
 export type NotificationProps = {
   message: string;
-  type?: "success" | "error";
+  type?: NotificationType.SUCCESS | NotificationType.FAILED;
   onClose: () => void;
 };
 
 export const Notification = ({
   message,
-  type = "success",
+  type = NotificationType.SUCCESS,
   onClose,
 }: NotificationProps) => {
   useEffect(() => {
@@ -20,7 +21,7 @@ export const Notification = ({
 
   return (
     <div
-      className={`fixed top-5 right-5 z-[9999] rounded px-4 py-3 text-white shadow-lg transition-all ${type === "success" ? "bg-green-600" : "bg-red-600"}`}
+      className={`fixed top-5 right-5 z-[9999] rounded px-4 py-3 text-white shadow-lg transition-all ${type === NotificationType.SUCCESS ? "bg-green-600" : "bg-red-600"}`}
     >
       {message}
     </div>

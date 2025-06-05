@@ -19,21 +19,24 @@ import {
 import { OrderStatus } from "@prisma/client";
 import { toRupiah } from "@/utils/toRupiah";
 import { Notification } from "@/components/ui/notification";
+import { NotificationType } from "@/types";
 
 const SalesPage: NextPageWithLayout = () => {
-  // LOCAL STATES ------------------------------------------------
+  // LOCAL STATES -----------------------------------------------------
   const [filterOrder, setFilterOrder] = useState<OrderStatus | "ALL">("ALL");
   const [notification, setNotification] = useState<{
     message: string;
-    type: "success" | "error";
+    type: NotificationType.SUCCESS | NotificationType.FAILED;
   } | null>(null);
 
   const apiUtils = api.useUtils();
 
-  const showNotification = (message: string, type: "success" | "error") =>
-    setNotification({ message, type });
+  const showNotification = (
+    message: string,
+    type: NotificationType.SUCCESS | NotificationType.FAILED,
+  ) => setNotification({ message, type });
 
-  // API CALLS ---------------------------------------------------
+  // API CALLS --------------------------------------------------------
   // get/read orders
   const { data: orders } = api.order.getOrders.useQuery({
     status: filterOrder,
@@ -50,20 +53,25 @@ const SalesPage: NextPageWithLayout = () => {
   } = api.order.finishOrder.useMutation({
     onSuccess: async () => {
       await apiUtils.order.getOrders.invalidate();
-      showNotification("Successfully finished the order", "success");
+
+      showNotification(
+        "Successfully finished the order",
+        NotificationType.SUCCESS,
+      );
     },
   });
 
-  // HANDLERS ----------------------------------------------------
-  const handleFinishOrder = (orderId: string) => finishOrder({ orderId });
+  // HANDLERS ---------------------------------------------------------
+  const handleFinishOrder = (id: string) => finishOrder({ id });
 
-  const handleFilterChangeOrder = (value: OrderStatus | "ALL") =>
+  const handleFilterChange = (value: OrderStatus | "ALL") =>
     setFilterOrder(value);
 
   return (
     <>
       <DashboardHeader>
         <DashboardTitle>Sales Dashboard</DashboardTitle>
+
         <DashboardDescription>
           Track your sales performance and view analytics.
         </DashboardDescription>
@@ -104,15 +112,16 @@ const SalesPage: NextPageWithLayout = () => {
         <div className="flex justify-between">
           <h3 className="mb-4 text-lg font-medium">Orders</h3>
 
-          <Select defaultValue="ALL" onValueChange={handleFilterChangeOrder}>
+          <Select defaultValue="ALL" onValueChange={handleFilterChange}>
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
+
             <SelectContent align="end">
               <SelectItem value="ALL">All</SelectItem>
               {Object.keys(OrderStatus).map((orderStatus) => (
                 <SelectItem key={orderStatus} value={orderStatus}>
-                  {/* @ts-expect-error: orderStatus is a string, but OrderStatus expects its own enum type */}
+                  {/* @ts-expect-error: OrderStatus is a string, but OrderStatus expects its own enum type */}
                   {OrderStatus[orderStatus] ?? ""}
                 </SelectItem>
               ))}
@@ -130,8 +139,7 @@ const SalesPage: NextPageWithLayout = () => {
               totalItems={order._count.orderItems}
               status={order.status}
               isFinishingOrder={
-                finishOrderIsPending &&
-                order.id === finishOrderVariables?.orderId
+                finishOrderIsPending && order.id === finishOrderVariables?.id
               }
             />
           ))}
@@ -141,8 +149,8 @@ const SalesPage: NextPageWithLayout = () => {
   );
 };
 
-SalesPage.getLayout = (page: ReactElement) => {
-  return <DashboardLayout>{page}</DashboardLayout>;
-};
+SalesPage.getLayout = (page: ReactElement) => (
+  <DashboardLayout>{page}</DashboardLayout>
+);
 
 export default SalesPage;
