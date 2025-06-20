@@ -91,10 +91,10 @@ export const CreateOrderSheet = ({
   open,
   onOpenChange,
 }: CreateOrderSheetProps) => {
-  // GLOBAL STATE ------------------------------------------------
+  // GLOBAL STATE -----------------------------------------------------
   const cartStore = useCartStore();
 
-  // LOCAL STATE -------------------------------------------------
+  // LOCAL STATE ------------------------------------------------------
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   // CALCULATE THE PRICE + TAX
@@ -104,7 +104,7 @@ export const CreateOrderSheet = ({
   const tax = useMemo(() => subTotal * 0.1, [subTotal]);
   const grandTotal = useMemo(() => subTotal + tax, [subTotal, tax]);
 
-  // API CALLS ---------------------------------------------------
+  // API CALLS --------------------------------------------------------
   // create order
   const {
     mutate: createOrder,
@@ -144,7 +144,7 @@ export const CreateOrderSheet = ({
   const isPaid = orderPaid === true;
   const isPendingCheckStatus = isPendingCheckOrderStatus || isPaid;
 
-  // HANDLERS ----------------------------------------------------
+  // HANDLERS ---------------------------------------------------------
   // increase/decrease the product quantity
   const handleQuantityChange = (id: string, quantity: number) => {
     if (quantity !== 0) {

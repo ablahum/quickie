@@ -17,57 +17,40 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Button } from "../ui/button";
 
-// Dashboard header component
-interface DashboardHeaderProps {
+interface DashboardProps {
   children: ReactNode;
   className?: string;
+}
+
+interface DashboardLayoutProps {
+  children: ReactNode;
 }
 
 export const DashboardHeader = ({
   children,
   className = "",
-}: DashboardHeaderProps) => {
+}: DashboardProps) => {
   return <header className={`mb-6 space-y-2 ${className}`}>{children}</header>;
 };
-
-// Dashboard title component
-interface DashboardTitleProps {
-  children: ReactNode;
-  className?: string;
-}
 
 export const DashboardTitle = ({
   children,
   className = "",
-}: DashboardTitleProps) => {
-  return (
-    <h1 className={`text-2xl font-bold tracking-tight ${className}`}>
-      {children}
-    </h1>
-  );
-};
-
-// Dashboard description component
-interface DashboardDescriptionProps {
-  children: ReactNode;
-  className?: string;
-}
+}: DashboardProps) => (
+  <h1 className={`text-2xl font-bold tracking-tight ${className}`}>
+    {children}
+  </h1>
+);
 
 export const DashboardDescription = ({
   children,
   className = "",
-}: DashboardDescriptionProps) => {
-  return <p className={`text-muted-foreground ${className}`}>{children}</p>;
-};
-
-// Main dashboard layout component
-interface DashboardLayoutProps {
-  children: ReactNode;
-}
+}: DashboardProps) => (
+  <p className={`text-muted-foreground ${className}`}>{children}</p>
+);
 
 export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const router = useRouter();
-
   const { theme, setTheme } = useTheme();
 
   const toggleTheme = () => {
@@ -81,6 +64,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
           <SidebarHeader className="p-4">
             <h2 className="text-xl font-bold">Quickie</h2>
           </SidebarHeader>
+
           <SidebarContent className="px-4">
             <SidebarMenu>
               <SidebarMenuItem>
@@ -91,7 +75,7 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
                 >
                   <Link href="/dashboard">
                     <ShoppingCart className="mr-2 h-4 w-4" />
-                    Create Order
+                    Dashboard
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -140,14 +124,14 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarContent>
-          {/* <SidebarFooter className="p-4">
-            <p className="text-muted-foreground text-xs">Simple POS v1.0</p>
+          <SidebarFooter className="p-4">
+            <p className="text-muted-foreground text-xs">Quickie v1.0</p>
             <div className="flex items-center gap-2">
               <Button variant="ghost" onClick={toggleTheme}>
                 {theme === "dark" ? "Dark Mode" : "Light Mode"}
               </Button>
             </div>
-          </SidebarFooter> */}
+          </SidebarFooter>
         </Sidebar>
 
         <main className="relative flex-1 overflow-auto p-6">{children}</main>
