@@ -64,20 +64,23 @@ The app will be available at http://localhost:3000.
 <details>
   <summary>A glimpse of screenshots of the apps</summary>
 
-  ### Proucts management page
-  ![product](https://github.com/ablahum/foodstore/blob/main/server/public/assets/cart.png)
+  ### Dashboard page
+  ![dashboard](https://github.com/ablahum/quickie/blob/main/public/dashboard.png)
   ### Category management page
-  ![category](https://github.com/ablahum/foodstore/blob/main/server/public/assets/profile.png)
+  ![product](https://github.com/ablahum/quickie/blob/main/public/category.png)
+  ### Product management page
+  ![category](https://github.com/ablahum/quickie/blob/main/public/product.png)
   ### Sales (Order management) page
-  ![sales](https://github.com/ablahum/foodstore/blob/main/server/public/assets/invoice.png)
-  ### Cart and Payment page
-  ![checkout](https://github.com/ablahum/foodstore/blob/main/server/public/assets/checkout.png)
-  ![checkout-modal](https://github.com/ablahum/foodstore/blob/main/server/public/assets/checkout-modal.png)
+  ![sales](https://github.com/ablahum/quickie/blob/main/public/sales.png)
+  ### Cart sidebar, QR Code, and Payment Status modal
+  ![cart](https://github.com/ablahum/quickie/blob/main/public/cart.png)
+  ![qr-code](https://github.com/ablahum/quickie/blob/main/public/qr.png)
+  ![payment-status](https://github.com/ablahum/quickie/blob/main/public/status.png)
 </details>
 
 ## 🔒 Access & Contribution
 - This project is not open for public contribution at this time.
-- Built as a personal experiment with realistic payment simulation flow using Xendit.
+- Built as a personal experiment with a realistic payment simulation flow using Xendit.
 
 ## 📬 Contact
 For questions, suggestions, or collaboration inquiries:
