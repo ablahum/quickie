@@ -1,4 +1,4 @@
-import { BarChart3, Grid3X3, Package, ShoppingCart, Sun } from "lucide-react";
+import { BarChart3, Grid3X3, Package, ShoppingCart } from "lucide-react";
 import React, { type ReactNode } from "react";
 
 import {
