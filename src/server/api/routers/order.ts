@@ -10,7 +10,7 @@ import { OrderStatus, type Prisma } from "@prisma/client";
 import { XenditStatus } from "@/types";
 
 export const orderRouter = createTRPCRouter({
-  // GET/READ ORDERS
+  // GET/READ ORDERS --------------------------------------------------
   getOrders: protectedProcedure
     .input(
       z.object({
@@ -50,7 +50,7 @@ export const orderRouter = createTRPCRouter({
       return orders;
     }),
 
-  // GET/READ SALES REPORT
+  // GET/READ SALES REPORT --------------------------------------------
   getSalesReport: protectedProcedure.query(async ({ ctx }) => {
     const { db } = ctx;
 
@@ -105,7 +105,7 @@ export const orderRouter = createTRPCRouter({
     };
   }),
 
-  // CREATE AN ORDER
+  // CREATE AN ORDER --------------------------------------------------
   createOrder: protectedProcedure
     .input(
       z.object({
@@ -191,7 +191,7 @@ export const orderRouter = createTRPCRouter({
       };
     }),
 
-  // SIMULATE THE PAYMENT
+  // SIMULATE THE PAYMENT ---------------------------------------------
   simulatePayment: protectedProcedure
     .input(
       z.object({
@@ -226,7 +226,7 @@ export const orderRouter = createTRPCRouter({
       });
     }),
 
-  // CHECK AN ORDER STATUS
+  // CHECK AN ORDER STATUS --------------------------------------------
   checkOrderStatus: protectedProcedure
     .input(
       z.object({
@@ -257,11 +257,10 @@ export const orderRouter = createTRPCRouter({
 
       const isPaid = xenditResponse.status === XenditStatus.SUCCEEDED;
 
-      console.log({ isPaid });
       return isPaid;
     }),
 
-  // FINISH AN ORDER
+  // FINISH AN ORDER --------------------------------------------------
   finishOrder: protectedProcedure
     .input(
       z.object({
