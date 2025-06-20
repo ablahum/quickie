@@ -24,9 +24,11 @@ export const CategoryForm = ({ onSubmit }: CategoryFormProps) => {
         render={({ field }) => (
           <FormItem>
             <FormLabel>Category Name</FormLabel>
+
             <FormControl>
               <Input {...field} />
             </FormControl>
+
             <FormMessage />
           </FormItem>
         )}

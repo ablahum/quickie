@@ -2,7 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 
 export const categoryRouter = createTRPCRouter({
-  // GET/READ CATEGORIES
+  // GET/READ CATEGORIES ----------------------------------------------
   getCategories: protectedProcedure.query(async ({ ctx }) => {
     const { db } = ctx;
 
@@ -22,7 +22,7 @@ export const categoryRouter = createTRPCRouter({
     return categories;
   }),
 
-  // CREATE A CATEGORY
+  // CREATE A CATEGORY ------------------------------------------------
   createCategory: protectedProcedure
     .input(
       z.object({
@@ -46,7 +46,7 @@ export const categoryRouter = createTRPCRouter({
       return newCategory;
     }),
 
-  // UPDATE A CATEGORY
+  // UPDATE A CATEGORY ------------------------------------------------
   editCategory: protectedProcedure
     .input(
       z.object({
@@ -69,7 +69,7 @@ export const categoryRouter = createTRPCRouter({
       return updatedCategory;
     }),
 
-  // DELETE A CATEGORY
+  // DELETE A CATEGORY ------------------------------------------------
   deleteCategory: protectedProcedure
     .input(
       z.object({

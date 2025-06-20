@@ -1,151 +1,158 @@
-// import {
-//   FormControl,
-//   FormField,
-//   FormItem,
-//   FormLabel,
-//   FormMessage,
-// } from "@/components/ui/form";
-// import { Input } from "@/components/ui/input";
-// import { Label } from "@/components/ui/label";
-// import { Notification } from "@/components/ui/notification";
-// import {
-//   Select,
-//   SelectContent,
-//   SelectItem,
-//   SelectTrigger,
-//   SelectValue,
-// } from "@/components/ui/select";
-// import type { ProductFormSchema } from "@/forms/product";
-// import { uploadFileToSignedUrl } from "@/lib/supabase";
-// import { Bucket } from "@/server/bucket";
-// import { api } from "@/utils/api";
-// import { useState, type ChangeEvent } from "react";
-// import { useFormContext } from "react-hook-form";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import type { ProductFormSchema } from "@/forms/product";
+import { uploadFileToSignedUrl } from "@/lib/supabase";
+import { Bucket } from "@/server/bucket";
+import { NotificationType } from "@/types";
+import { api } from "@/utils/api";
+import { type ChangeEvent } from "react";
+import { useFormContext } from "react-hook-form";
 
-// type ProductFormProps = {
-//   onSubmit: (values: ProductFormSchema) => void;
-//   onChangeImageUrl: (imageUrl: string) => void;
-// };
+type ProductFormProps = {
+  onSubmit: (values: ProductFormSchema) => void;
+  onChangeImageUrl: (imageUrl: string) => void;
+  showNotification: (
+    message: string,
+    type: NotificationType.SUCCESS | NotificationType.FAILED,
+  ) => void;
+};
 
-// export const ProductForm = ({
-//   onSubmit,
-//   onChangeImageUrl,
-// }: ProductFormProps) => {
-//   const form = useFormContext<ProductFormSchema>();
+export const ProductForm = ({
+  onSubmit,
+  onChangeImageUrl,
+  showNotification,
+}: ProductFormProps) => {
+  const form = useFormContext<ProductFormSchema>();
 
-//   // ========== Modal Notification ==========
-//   const [notification, setNotification] = useState<{
-//     message: string;
-//     type: "success" | "error";
-//   } | null>(null);
+  // API CALLS --------------------------------------------------------
+  // get/read categories
+  const { data: categories } = api.category.getCategories.useQuery();
 
-//   const showNotification = (message: string, type: "success" | "error") => {
-//     setNotification({ message, type });
-//   };
+  // upload a product's image
+  const { mutateAsync: createImageSignedUrl } =
+    api.product.createProductImageUploadSignedUrl.useMutation();
 
-//   const { data: categories } = api.category.getCategories.useQuery();
+  // HANDLER ----------------------------------------------------------
+  const imageChangeHandler = async (e: ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
 
-//   const { mutateAsync: createImageSignedUrl } =
-//     api.product.createProductImageUploadSignedUrl.useMutation();
+    if (files && files?.length > 0) {
+      const file = files[0];
 
-//   const imageChangeHandler = async (e: ChangeEvent<HTMLInputElement>) => {
-//     const files = e.target.files;
+      if (!file) return;
 
-//     if (files && files?.length > 0) {
-//       const file = files[0];
+      try {
+        const { path, token } = await createImageSignedUrl();
 
-//       if (!file) return;
+        const imageUrl = await uploadFileToSignedUrl({
+          bucket: Bucket.ProductImages,
+          file,
+          path,
+          token,
+        });
 
-//       const { path, token } = await createImageSignedUrl();
+        onChangeImageUrl(imageUrl);
+        form.setValue("imageUrl", imageUrl);
+        showNotification(
+          "Successfully uploaded an image",
+          NotificationType.SUCCESS,
+        );
+      } catch (error) {
+        console.error(error);
 
-//       const imageUrl = await uploadFileToSignedUrl({
-//         bucket: Bucket.ProductImages,
-//         file,
-//         path,
-//         token,
-//       });
+        showNotification("Failed to upload image.", NotificationType.FAILED);
+      }
+    }
+  };
 
-//       onChangeImageUrl(imageUrl);
-//       showNotification("Uploaded image!", "success");
-//     }
-//   };
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Product Name</FormLabel>
+            <FormControl>
+              <Input {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-//   return (
-//     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-//       <FormField
-//         control={form.control}
-//         name="name"
-//         render={({ field }) => (
-//           <FormItem>
-//             <FormLabel>Product Name</FormLabel>
-//             <FormControl>
-//               <Input {...field} />
-//             </FormControl>
-//             <FormMessage />
-//           </FormItem>
-//         )}
-//       />
+      <FormField
+        control={form.control}
+        name="price"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Price</FormLabel>
+            <FormControl>
+              <Input type="number" {...field} />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-//       {/* Notification */}
-//       {notification && (
-//         <Notification
-//           message={notification.message}
-//           type={notification.type}
-//           onClose={() => setNotification(null)}
-//         />
-//       )}
+      <FormField
+        control={form.control}
+        name="categoryId"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Category</FormLabel>
+            <FormControl>
+              <Select
+                value={field.value}
+                onValueChange={(value) => {
+                  field.onChange(value);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Category" />
+                </SelectTrigger>
 
-//       <FormField
-//         control={form.control}
-//         name="price"
-//         render={({ field }) => (
-//           <FormItem>
-//             <FormLabel>Price</FormLabel>
-//             <FormControl>
-//               <Input type="number" {...field} />
-//             </FormControl>
-//             <FormMessage />
-//           </FormItem>
-//         )}
-//       />
+                <SelectContent>
+                  {categories?.map((category) => {
+                    return (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.name}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
 
-//       <FormField
-//         control={form.control}
-//         name="categoryId"
-//         render={({ field }) => (
-//           <FormItem>
-//             <FormLabel>Category</FormLabel>
-//             <FormControl>
-//               <Select
-//                 value={field.value}
-//                 onValueChange={(value) => {
-//                   field.onChange(value);
-//                 }}
-//               >
-//                 <SelectTrigger className="w-full">
-//                   <SelectValue placeholder="Category" />
-//                 </SelectTrigger>
+      <div className="space-y-1">
+        <Label>Product Image</Label>
 
-//                 <SelectContent>
-//                   {categories?.map((category) => {
-//                     return (
-//                       <SelectItem key={category.id} value={category.id}>
-//                         {category.name}
-//                       </SelectItem>
-//                     );
-//                   })}
-//                 </SelectContent>
-//               </Select>
-//             </FormControl>
-//             <FormMessage />
-//           </FormItem>
-//         )}
-//       />
+        <Input onChange={imageChangeHandler} type="file" accept="image/*" />
+      </div>
 
-//       <div className="space-y-1">
-//         <Label>Product Image</Label>
-//         <Input onChange={imageChangeHandler} type="file" accept="image/*" />
-//       </div>
-//     </form>
-//   );
-// };
+      <FormField
+        control={form.control}
+        name="imageUrl"
+        render={({ field }) => <input type="hidden" {...field} />}
+      />
+    </form>
+  );
+};

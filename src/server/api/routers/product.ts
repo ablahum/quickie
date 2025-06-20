@@ -1,100 +1,62 @@
-import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { z } from "zod";
-import { supabaseAdmin } from "../../supabase-admin";
+import { createTRPCRouter, protectedProcedure } from "../trpc";
+import { supabaseAdmin } from "@/server/supabase-admin";
 import { Bucket } from "@/server/bucket";
 import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@prisma/client";
 
+export function extractPathFromSupabaseUrl(url: string): string {
+  const parts = url.split("/object/public/");
+  return parts[1] ?? "";
+}
+
 export const productRouter = createTRPCRouter({
-  // GET/READ PRODUCTS
+  // GET/READ PRODUCTS ------------------------------------------------
   getProducts: protectedProcedure
     .input(
       z.object({
         categoryId: z.string(),
-        search: z.string().optional(),
+        search: z.string().optional().default(""),
       }),
     )
     .query(async ({ ctx, input }) => {
       const { db } = ctx;
-
       const whereClause: Prisma.ProductWhereInput = {};
 
-      if (input.categoryId !== "ALL") {
-        whereClause.categoryId = input.categoryId;
+      if (input.categoryId !== "ALL") whereClause.categoryId = input.categoryId;
+
+      if (input.search.trim() !== "") {
+        whereClause.name = {
+          contains: input.search,
+          mode: "insensitive",
+        };
       }
 
-      if (input.search) {
-        whereClause.OR = [
-          { name: { contains: input.search, mode: "insensitive" } },
-          {
-            category: { name: { contains: input.search, mode: "insensitive" } },
-          },
-        ];
-      }
-
-      const product = await db.product.findMany({
+      const products = await db.product.findMany({
         where: whereClause,
         select: {
           id: true,
           name: true,
           price: true,
+          imageUrl: true,
           category: {
             select: {
               id: true,
               name: true,
             },
           },
-          imageUrl: true,
         },
       });
 
-      return product;
+      return products;
     }),
 
-  // GET/READ PRODUCT
-  getProductById: protectedProcedure
-    .input(
-      z.object({
-        productId: z.string().uuid(),
-      }),
-    )
-    .query(async ({ ctx, input }) => {
-      const { db } = ctx;
-
-      const product = await db.product.findUnique({
-        where: {
-          id: input.productId,
-        },
-        select: {
-          id: true,
-          name: true,
-          price: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          imageUrl: true,
-        },
-      });
-
-      if (!product) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Product not found",
-        });
-      }
-
-      return product;
-    }),
-
-  // CREATE PRODUCT
+  // CREATE A PRODUCT -------------------------------------------------
   createProduct: protectedProcedure
     .input(
       z.object({
-        name: z.string().min(3).max(50),
-        price: z.coerce.number().min(1000),
+        name: z.string().min(3, "Minimum of 3 characters required"),
+        price: z.number().min(1000),
         categoryId: z.string(),
         imageUrl: z.string().url(),
       }),
@@ -118,6 +80,7 @@ export const productRouter = createTRPCRouter({
       return newProduct;
     }),
 
+  // UPLOAD A PRODUCT's IMAGE -----------------------------------------
   createProductImageUploadSignedUrl: protectedProcedure.mutation(async () => {
     const { data, error } = await supabaseAdmin.storage
       .from(Bucket.ProductImages)
@@ -133,29 +96,12 @@ export const productRouter = createTRPCRouter({
     return data;
   }),
 
-  // deleteProductImage: protectedProcedure
-  //   .input(z.object({ paths: z.array(z.string()) }))
-  //   .mutation(async ({ input }) => {
-  //     const { error } = await supabaseAdmin.storage
-  //       .from(Bucket.ProductImages)
-  //       .remove(input.paths);
-
-  //     if (error) {
-  //       throw new TRPCError({
-  //         code: "INTERNAL_SERVER_ERROR",
-  //         message: error.message,
-  //       });
-  //     }
-
-  //     return { success: true };
-  //   }),
-
-  // UPDATE PRODUCT
-  editProduct: protectedProcedure
+  // UPDATE A PRODUCT -------------------------------------------------
+  updateProduct: protectedProcedure
     .input(
       z.object({
-        productId: z.string(),
-        name: z.string().min(3).max(50),
+        id: z.string(),
+        name: z.string().min(3).max(100),
         price: z.coerce.number().min(1000),
         categoryId: z.string(),
         imageUrl: z.string().url(),
@@ -164,53 +110,33 @@ export const productRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
 
-      const editedProduct = await db.product.update({
+      await db.product.update({
         where: {
-          id: input.productId,
+          id: input.id,
         },
         data: {
           name: input.name,
           price: input.price,
-          category: {
-            connect: {
-              id: input.categoryId,
-            },
-          },
+          categoryId: input.categoryId,
           imageUrl: input.imageUrl,
         },
-        select: {
-          id: true,
-          name: true,
-          price: true,
-          category: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          imageUrl: true,
-        },
       });
-
-      return editedProduct;
     }),
 
-  // DELETE PRODUCT
+  // DELETE A PRODUCT -------------------------------------------------
   deleteProduct: protectedProcedure
     .input(
       z.object({
-        productId: z.string(),
+        id: z.string(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { db } = ctx;
 
-      const deletedProduct = await db.product.delete({
+      await db.product.delete({
         where: {
-          id: input.productId,
+          id: input.id,
         },
       });
-
-      return deletedProduct;
     }),
 });
